@@ -23,6 +23,12 @@ class StatusOperacional(str, enum.Enum):
     BAIXADO = "BAIXADO"
 
 
+class Resultado(str, enum.Enum):
+    APROVADO = "APROVADO"
+    APROVADO_COM_RESTRICOES = "APROVADO_COM_RESTRICOES"
+    REPROVADO = "REPROVADO"
+
+
 class FamiliaMetrologica(Base):
     __tablename__ = "familia_metrologica"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -125,3 +131,30 @@ class Instrumento(Base):
     tipo: Mapped["TipoInstrumento | None"] = relationship()
     grandeza: Mapped["Grandeza | None"] = relationship()
     unidade: Mapped["UnidadeMedida | None"] = relationship()
+    calibracoes: Mapped[list["Calibracao"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True
+    )
+
+
+class Calibracao(Base):
+    __tablename__ = "calibracao"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    instrumento_id: Mapped[int] = mapped_column(
+        ForeignKey("instrumento.id", ondelete="CASCADE"), index=True
+    )
+    data_calibracao: Mapped[Date] = mapped_column(Date)
+    data_validade: Mapped[Date | None] = mapped_column(Date)
+    ciclo_meses: Mapped[int] = mapped_column(Integer, default=12)
+    resultado: Mapped[Resultado] = mapped_column(Enum(Resultado), default=Resultado.APROVADO)
+    laboratorio: Mapped[str | None] = mapped_column(String)
+    laboratorio_cnpj: Mapped[str | None] = mapped_column(String)
+    acreditacao_rbc: Mapped[bool] = mapped_column(Boolean, default=False)
+    numero_cgcre: Mapped[str | None] = mapped_column(String)
+    numero_certificado: Mapped[str | None] = mapped_column(String)
+    custo: Mapped[float | None] = mapped_column(Numeric(12, 2))
+    responsavel: Mapped[str | None] = mapped_column(String)
+    certificado_path: Mapped[str | None] = mapped_column(String)
+    origem: Mapped[str] = mapped_column(String, default="MANUAL")
+    observacoes: Mapped[str | None] = mapped_column(String)
+    criado_em: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
