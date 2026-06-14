@@ -41,6 +41,7 @@ function fmtData(iso) { return iso ? iso.split("-").reverse().join("/") : "—";
 const NAV = [
   ["index.html", "speedometer2", "Dashboard"],
   ["inventario.html", "list-ul", "Inventário"],
+  ["cadastro.html", "plus-lg", "Novo"],
   ["alertas.html", "bell", "Alertas"],
   ["importar.html", "upload", "Importar"],
 ];

@@ -11,27 +11,26 @@
   <h1>Inventário de Instrumentos</h1>
   <div class="toolbar">
     <input type="search" id="busca" placeholder="Buscar por código, série, equipamento...">
-    <a class="btn" href="cadastro.html"><i class="bi bi-plus-lg"></i> Novo</a>
-    <button class="funil-extra btn ghost" data-filtro="marca"><i class="bi bi-funnel"></i> Marca</button>
-    <button class="funil-extra btn ghost" data-filtro="modelo"><i class="bi bi-funnel"></i> Modelo</button>
-    <div class="export-grp" style="margin-left:auto">
+    <button class="btn ghost" id="btnLimparFiltros"><i class="bi bi-funnel"></i> Limpar</button>
+    <div class="export-grp">
       <span class="muted">Exportar:</span>
-      <button class="btn ghost" data-exp="csv">CSV</button>
-      <button class="btn ghost" data-exp="xlsx">XLSX</button>
       <button class="btn ghost" data-exp="pdf">PDF</button>
+      <button class="btn ghost" data-exp="xlsx">XLS</button>
+      <button class="btn ghost" data-exp="csv">CSV</button>
     </div>
+    <span class="cont-itens" id="cont" style="margin-left:auto"></span>
   </div>
   <div class="selbar" id="selbar" style="display:none">
     <b id="selcount">0 selecionado(s)</b>
     <button class="btn" id="btnLote"><i class="bi bi-pencil-square"></i> Editar selecionados</button>
     <button class="btn ghost" id="btnLimpar">Limpar seleção</button>
   </div>
-  <div class="muted" id="cont" style="margin-bottom:8px"></div>
   <div class="twrap"><table id="tab"><thead><tr>
     <th class="chk"><input type="checkbox" id="chkAll" title="Selecionar todos"></th>
     <th data-col="disciplina" data-filtro="disciplina">Disc.</th>
     <th data-col="equipamento" data-filtro="equipamento">Equipamento</th>
-    <th data-col="marcamodelo">Marca/Modelo</th>
+    <th data-col="marca" data-filtro="marca">Marca</th>
+    <th data-col="modelo" data-filtro="modelo">Modelo</th>
     <th data-col="codigo">Cód. interno</th>
     <th data-col="serial">Série</th>
     <th data-col="sistema" data-filtro="sistema">Sistema</th>
@@ -59,7 +58,6 @@ const busca = document.getElementById("busca"),
 function valorCol(i, col) {
   switch (col) {
     case "codigo": return i.codigo_interno || i.codigo_patrimonial || "";
-    case "marcamodelo": return [i.marca, i.modelo].filter(Boolean).join(" ");
     case "classe": return i.classe_prioridade || "";
     default: return i[col] == null ? "" : i[col];
   }
@@ -176,20 +174,21 @@ function renderLinhas() {
       <td class="chk"><input type="checkbox" class="rowchk" data-id="${i.id}" ${selecionados.has(i.id) ? "checked" : ""}></td>
       <td>${esc(i.disciplina)}</td>
       <td>${esc(i.equipamento)}</td>
-      <td>${esc([i.marca, i.modelo].filter(Boolean).join(" "))}</td>
+      <td>${esc(i.marca)}</td>
+      <td>${esc(i.modelo)}</td>
       <td>${esc(i.codigo_interno || i.codigo_patrimonial)}</td>
       <td>${esc(i.serial)}</td>
       <td>${esc(i.sistema)}</td>
       <td>${badgeStatus(i.status)}</td>
       <td>${fmtData(i.data_validade)}</td>
       <td>${badgePrioridade(i)}</td></tr>`).join("")
-    || `<tr><td colspan="10" class="muted">Nada encontrado.</td></tr>`;
+    || `<tr><td colspan="11" class="muted">Nada encontrado.</td></tr>`;
 }
 
 // recomputa visiveis(), atualiza contagem/cabeçalhos e re-renderiza
 function refrescar() {
   itensAtuais = visiveis();
-  cont.textContent = `${itensAtuais.length} de ${todos.length} instrumento(s)`;
+  cont.textContent = `${itensAtuais.length}/${todos.length}`;
   atualizarCabecalhos();
   renderLinhas();
 }
@@ -241,6 +240,14 @@ document.getElementById("btnLimpar").onclick = () => {
 };
 
 document.getElementById("btnLote").onclick = () => abrirEdicaoLote();
+
+// Limpar: zera filtros de coluna, busca e ordenação
+document.getElementById("btnLimparFiltros").onclick = () => {
+  for (const k in filtrosCol) delete filtrosCol[k];
+  busca.value = "";
+  ordenacao = { coluna: null, dir: null };
+  mudouVisao();
+};
 
 // ── Ordenação por clique no cabeçalho ───────────────────────────────────────
 document.querySelector("#tab thead").addEventListener("click", (e) => {
