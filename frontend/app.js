@@ -41,6 +41,7 @@ function fmtData(iso) { return iso ? iso.split("-").reverse().join("/") : "—";
 const NAV = [
   ["index.html", "speedometer2", "Dashboard"],
   ["inventario.html", "list-ul", "Inventário"],
+  ["cadastro.html", "plus-lg", "Novo"],
   ["alertas.html", "bell", "Alertas"],
   ["importar.html", "upload", "Importar"],
 ];
@@ -129,6 +130,24 @@ SDK.patch = async (path, body) => {
   if (r.status === 409) throw new Error("Código patrimonial já existe");
   if (!r.ok) throw new Error("HTTP " + r.status);
   return r.json();
+};
+
+// ── Exportação (download de arquivo) ────────────────────────────────────────
+SDK.exportar = async (ids, formato) => {
+  const r = await fetch(API + "/instrumentos/export", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids, formato }),
+  });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  const blob = await r.blob();
+  const cd = r.headers.get("Content-Disposition") || "";
+  const m = cd.match(/filename="?([^"]+)"?/);
+  const nome = m ? m[1] : `inventario.${formato}`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = nome;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
 };
 
 // ── Render compartilhado da ficha (página + modal) ──────────────────────────

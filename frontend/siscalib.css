@@ -65,3 +65,19 @@ th.chk,td.chk{width:34px;text-align:center}
 .campos-pick{display:flex;flex-wrap:wrap;gap:10px 16px;margin-bottom:6px}
 .campos-pick label{display:flex;align-items:center;gap:5px;font-size:13px}
 tbody tr{cursor:pointer}
+#tab thead th[data-col]{cursor:pointer;user-select:none}
+#tab thead th[data-col]:hover{color:var(--tx)}
+.bi-funnel,.bi-funnel-fill{cursor:pointer;margin-left:4px;font-size:11px}
+.bi-funnel-fill.ativo,.funil-extra.ativo{color:var(--blue);border-color:var(--blue)}
+.export-grp{display:flex;align-items:center;gap:6px}
+.toolbar{align-items:center}
+.cont-itens{color:var(--tx2);font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+.filtro-pop{position:absolute;z-index:1100;background:var(--sf);border:1px solid var(--bd2);
+  border-radius:var(--r);padding:8px;min-width:180px;max-height:320px;overflow:auto;
+  box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.filtro-acts{display:flex;gap:8px;margin-bottom:6px}
+.filtro-acts button{background:var(--sf2);border:1px solid var(--bd);color:var(--tx2);
+  font-size:11px;padding:3px 8px;border-radius:var(--r);cursor:pointer}
+.filtro-itens{display:flex;flex-direction:column;gap:4px}
+.filtro-itens label{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;
+  text-transform:none;letter-spacing:0;color:var(--tx)}
