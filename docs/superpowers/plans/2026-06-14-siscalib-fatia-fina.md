@@ -59,15 +59,17 @@
 
 - [ ] **Step 1: Criar `requirements.txt`**
 
+> Pins escolhidos por compatibilidade com Python 3.14 (único interpretador local; pydantic 2.7.x não compila no 3.14). Funcionam também no Python 3.12 do Dockerfile.
+
 ```
-fastapi==0.115.0
-uvicorn[standard]==0.30.6
-sqlalchemy==2.0.34
-alembic==1.13.2
-pydantic==2.7.4
-python-multipart==0.0.9
-pytest==8.3.2
-httpx==0.27.2
+fastapi==0.137.0
+uvicorn[standard]==0.49.0
+sqlalchemy==2.0.50
+alembic==1.18.4
+pydantic==2.13.4
+python-multipart==0.0.32
+pytest==9.1.0
+httpx==0.28.1
 ```
 
 - [ ] **Step 2: Criar ambiente e instalar**
