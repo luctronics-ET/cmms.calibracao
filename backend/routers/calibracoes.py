@@ -8,7 +8,7 @@ from backend.db import get_db
 from backend.models import Instrumento, Calibracao, Resultado
 from backend.servico import instrumento_para_out, calibracao_para_out, aplicar_derivados
 from backend.calibracao import adicionar_meses
-from backend.schemas import CalibracaoIn, ListaCalibracoes, RegistroCalibracaoOut, CalibracaoOut
+from backend.schemas import CalibracaoIn, ListaCalibracoes, RegistroCalibracaoOut, CalibracaoOut, InstrumentoOut
 
 router = APIRouter(prefix="/api/v1", tags=["calibracoes"])
 
@@ -86,3 +86,16 @@ async def upload_certificado(inst_id: int, cal_id: int,
     db.commit()
     db.refresh(cal)
     return calibracao_para_out(cal)
+
+
+@router.delete("/instrumentos/{inst_id}/calibracoes/{cal_id}", response_model=InstrumentoOut)
+def remover(inst_id: int, cal_id: int, db: Session = Depends(get_db)):
+    inst = _get_inst(db, inst_id)
+    cal = db.get(Calibracao, cal_id)
+    if not cal or cal.instrumento_id != inst_id:
+        raise HTTPException(status_code=404, detail="Calibração não encontrada")
+    db.delete(cal)
+    db.commit()
+    aplicar_derivados(inst, db)
+    db.refresh(inst)
+    return instrumento_para_out(inst, date.today())

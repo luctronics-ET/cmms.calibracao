@@ -91,3 +91,21 @@ def test_upload_certificado_calibracao_inexistente_404(client):
         files={"arquivo": ("cert.pdf", b"%PDF", "application/pdf")},
     )
     assert r.status_code == 404
+
+
+def test_delete_calibracao_recalcula(client):
+    iid = _id_primeiro(client)
+    client.post(f"/api/v1/instrumentos/{iid}/calibracoes", json={
+        "data_calibracao": "2025-01-01", "resultado": "APROVADO"})
+    nova = client.post(f"/api/v1/instrumentos/{iid}/calibracoes", json={
+        "data_calibracao": "2026-01-01", "resultado": "APROVADO"}).json()["calibracao"]
+    # apaga a mais recente -> validade volta a refletir a de 2025
+    r = client.delete(f"/api/v1/instrumentos/{iid}/calibracoes/{nova['id']}")
+    assert r.status_code == 200
+    assert r.json()["data_validade"] == "2026-01-01"
+
+
+def test_delete_calibracao_inexistente_404(client):
+    iid = _id_primeiro(client)
+    r = client.delete(f"/api/v1/instrumentos/{iid}/calibracoes/99999")
+    assert r.status_code == 404
