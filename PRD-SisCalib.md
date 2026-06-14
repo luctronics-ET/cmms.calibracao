@@ -1,12 +1,44 @@
 # PRD — SisCalib: Sistema de Gestão Metrológica
-**Versão:** 1.1  
+**Versão:** 1.2  
 **Data:** Junho 2026  
 **Autor:** Divisão de Manutenção Especializada — CMASM / Seção de Eletrônica  
-**Status:** ✅ Questões em aberto respondidas — pronto para plano de implementação
+**Status:** 🚧 Fase 1 (MVP) em implementação — repo `xCalibracao`
+
+> **v1.2 (atualização de reconciliação):** o PRD foi atualizado para refletir o que já está construído e mergeado em `main`. As mudanças mais relevantes em relação à v1.1:
+> - O modelo de criticidade **Classe A/B/C/D** foi **substituído pelo IGP** (Índice Global de Prioridade do Equipamento) — ver §6.1 e §0.
+> - A geração de arquivos da exportação usa **fpdf2 + openpyxl** (CSV/XLSX/PDF resumo); **WeasyPrint** permanece previsto apenas para certificados/etiquetas HTML→PDF (Fase 1/2, ainda não feito).
+> - O frontend é **HTML/JS vanilla reaproveitando a camada visual do cmasm.erp vendorizada** (fontes, ícones, `xcmasm-govbr.css`, tokens dark), não o govbr-ds puro.
+> - Há o eixo **Disciplina (ELE/MEC)** no instrumento, não previsto na v1.1.
+> - Ver §0 (Status de Implementação) para o checklist real por requisito.
+
+---
+
+## 0. Status de Implementação (v1.2)
+
+Snapshot do que está **entregue e mergeado em `main`** vs. pendente. Stack real: FastAPI + SQLAlchemy/Alembic + SQLite, 1 container Docker (porta 8080); frontend HTML/JS vanilla; **89 testes** passando.
+
+| Bloco | Estado | Observações |
+|-------|--------|-------------|
+| Importação CSV do inventário (~497 instrumentos) | ✅ Entregue | `backend/importacao.py` + `routers/importacao.py`; tela `importar.html` |
+| Inventário + busca | ✅ Entregue | **client-side**: carrega tudo uma vez, ordenação por cabeçalho, filtros multi-seleção (disc, equipamento, marca, modelo, sistema, status, prioridade) |
+| Motor de status/validade | ✅ Entregue | `backend/calibracao.py` (vencido / a vencer 7·30·60 / válido) |
+| Dashboard + painel de alertas | ✅ Entregue | `routers/dashboard.py`, `index.html`, `alertas.html` |
+| Cadastro 6.1 + base metrológica | ✅ Entregue | 4 tabelas de domínio (15 famílias RBC/INMETRO), `GET /dominios`, `cadastro.html`, upload foto/manual |
+| Modelo de criticidade **IGP** | ✅ Entregue | `backend/criticidade.py` — substitui Classe A/B/C/D (ver §6.1) |
+| Edição em massa | ✅ Entregue | `PATCH /instrumentos/{id}` parcial, modal de ficha, multi-seleção + edição em lote |
+| Exportação CSV/XLSX/PDF | ✅ Entregue | `POST /api/v1/instrumentos/export`; CSV UTF-8-BOM, XLSX openpyxl, PDF resumo fpdf2 |
+| **Registro de calibrações (6.2)** | ⬜ Pendente | hoje `data_ultima_calibracao`/`data_validade` ficam no próprio instrumento; falta entidade `calibracoes` + histórico + upload de certificado PDF |
+| Gestão de laboratórios (6.4) | ⬜ Pendente | — |
+| Etiquetas com QR Code (6.6) | ⬜ Pendente | — |
+| Página pública por seção (`/qr/{codigo}`) | ⬜ Pendente | — |
+| Autenticação JWT | ⬜ Pendente | sistema roda sem login na rede local interna |
+
+**Eixos de classificação reais no instrumento:** Disciplina (ELE/MEC), Família metrológica (FK), Tipo (FK), Grandeza (FK), Unidade (FK), e os 5 fatores IGP (fu, nc, ab, cm, ci).
 
 ---
 
 ## Índice
+0. [Status de Implementação (v1.2)](#0-status-de-implementação-v12)
 1. [Contexto e Problema](#1-contexto-e-problema)
 2. [Objetivos](#2-objetivos)
 3. [Não-Objetivos (Escopo Excluído)](#3-não-objetivos-escopo-excluído)
@@ -222,12 +254,35 @@ US-E04 | Como metrológista, quero registrar justificativa quando alterar o inte
 - [ ] Grandeza medida principal + unidade SI
 - [ ] Faixa nominal + resolução + exatidão/EMP
 - [ ] Periodicidade de calibração (padrão: 12 meses, configurável)
-- [ ] Criticidade metrológica: Classe A / B / C / D
+- [x] **Criticidade via IGP** (Índice Global de Prioridade do Equipamento) — substitui o Classe A/B/C/D da v1.1. Ver detalhamento abaixo.
 - [ ] Localização: Organização → Unidade → Seção → Bancada
 - [ ] Status: ATIVO / EM CALIBRAÇÃO / EM MANUTENÇÃO / REPROVADO / BLOQUEADO / BAIXADO
 - [ ] Campos de observação livre
 - [ ] Upload de foto do equipamento e do manual (PDF)
 - [ ] **Critério de aceitação:** Cadastro salvo em < 2 minutos; campos obrigatórios validados; código patrimonial único
+
+##### Modelo de criticidade — IGP (implementado)
+O Classe A/B/C/D do PRD v1.1 foi substituído por um índice multifatorial, mais aderente à realidade da DME. São **5 fatores**, cada um pontuado de **1 a 3** (`backend/criticidade.py`, motor puro sem I/O):
+
+| Sigla | Fator | Peso | Escala 1 → 3 |
+|-------|-------|------|--------------|
+| FU | Frequência de uso | 1 | esporádico → regular → diário |
+| NC | Necessidade crítica | 2 | baixo impacto → importante → crítico |
+| AB | Abundância/redundância | 1 | alta redundância → média → única |
+| CM | Criticidade metrológica | 2 | tolerância alta → moderada → baixa tolerância |
+| CI | Custo de indisponibilidade | 1 | mínimo → moderado → afeta operação |
+
+`IGP = FU·1 + NC·2 + AB·1 + CM·2 + CI·1` → faixa real **7..21** quando todos os fatores estão preenchidos.
+
+| Classe de prioridade | Faixa IGP |
+|----------------------|-----------|
+| MAXIMA | ≥ 18 |
+| MEDIA | 14–17 |
+| BAIXA | 11–13 |
+| MUITO_BAIXA | 7–10 |
+| NAO_CLASSIFICADO | qualquer fator ausente |
+
+> `CM` (criticidade metrológica) é também a base prevista para a futura **regra de elegibilidade de calibração interna** (Fase 2).
 
 #### 6.2 Registro de Calibrações
 - [ ] Vínculo de calibração ao instrumento
@@ -447,8 +502,12 @@ grandezas               (VDC, VAC, IDC, FREQ, TEMP, PRESS, TORQUE, LEN...)
 unidades_medida         (V, A, Ω, Hz, °C, Pa, Nm, mm, kg...)
 tipos_instrumento       (Multímetro, Osciloscópio, Fonte DC, Paquímetro...)
 classes_instrumento     (Padrão Primário, Padrão Secundário, Padrão Trabalho, Instrumento, Auxiliar)
-niveis_criticidade      (Classe A, B, C, D)
 regras_decisao          (Simples, Banda de guarda, ILAC G8, ANSI Z540.3)
+
+-- Criticidade NÃO é tabela de domínio: é calculada pelo IGP (5 fatores 1..3
+-- gravados no próprio instrumento → fu, nc, ab, cm, ci). Ver §6.1.
+-- Tabelas de domínio implementadas: familia_metrologica, tipo_instrumento,
+-- grandeza, unidade_medida (4 lookups, seed em backend/dominios.py).
 ```
 
 ---
@@ -521,10 +580,11 @@ Qualquer computador na rede acessa em `http://[ip-servidor]:8080`.
 | Backend | FastAPI (Python 3.12) | Familiar, async nativo, auto-documentação OpenAPI para integração com cmasm.erp |
 | Banco de dados | **SQLite** (não PostgreSQL) | 500 instrumentos ≈ < 50 MB; sem serviço separado; backup = copiar 1 arquivo; ACID completo |
 | ORM | SQLAlchemy + Alembic | Migrações seguras; compatível com upgrade futuro para PostgreSQL se escala crescer |
-| Frontend | HTML + govbr-ds | Padrão visual federal; sem framework JS pesado; carrega rápido em rede local |
-| Geração de PDF | WeasyPrint | Certificados internos, etiquetas QR, relatórios — geração CSS → PDF no servidor |
-| QR Code | qrcode (Python) | Geração server-side; embutido na etiqueta PDF |
-| Autenticação | JWT com cookie HttpOnly | Sem OAuth externo; controle local; sessão de 8h |
+| Frontend | HTML/JS vanilla + camada visual do cmasm.erp vendorizada | Reaproveita fontes DM Sans/JetBrains Mono, bootstrap-icons, `xcmasm-govbr.css` e tokens dark do cmasm.erp (todos em `frontend/vendor/`, sem CDN externo); sem framework JS pesado |
+| Geração de arquivos (export) | **fpdf2** (PDF resumo) + **openpyxl** (XLSX) + CSV UTF-8-BOM | ✅ implementado em `routers/exportacao.py`; PDF sanitiza para Latin-1 |
+| Geração de PDF (certificados/etiquetas) | WeasyPrint *(previsto)* | Certificados internos e etiquetas QR via template HTML → PDF; ainda não implementado |
+| QR Code | qrcode (Python) *(previsto)* | Geração server-side; embutido na etiqueta PDF |
+| Autenticação | JWT com cookie HttpOnly *(previsto)* | Hoje roda sem login na LAN interna; sessão de 8h quando implementado |
 | Armazenamento de arquivos | Volume Docker `/data/uploads/` | Local; sem nuvem; backup junto com o banco |
 | Notificações | **In-app apenas** — sem SMTP | Badge + painel de alertas + exportação PDF/CSV |
 | Deploy | Docker (imagem única) | 1 comando; sem docker-compose necessário na v1 |
@@ -589,18 +649,22 @@ SisCalib   ───────────────────────
 ```
 FASE 1 — MVP: Controle e Visibilidade                         [6–8 semanas]
 ──────────────────────────────────────────────────────────────────────────
-Stack: FastAPI + SQLite + govbr-ds HTML — 1 container Docker
+Stack: FastAPI + SQLite + HTML/JS vanilla (visual cmasm.erp vendorizado) — 1 container Docker
+Legenda: [x] entregue em `main` · [ ] pendente
 
-  ✓ Inventário de instrumentos completo (~500 registros)
-  ✓ Importação CSV do Excel atual
-  ✓ Registro de calibrações externas + upload de certificados PDF
-  ✓ Painel de alertas in-app (vencido / a vencer) — sem email
-  ✓ Dashboard de status com filtros por seção/grandeza/criticidade
-  ✓ Etiquetas com QR Code (impressão individual e em lote)
-  ✓ Gestão de laboratórios externos (acreditação, escopo)
-  ✓ Relatório de conformidade exportável (PDF + CSV) para auditoria
-  ✓ Página pública de seção (tablet na bancada, sem login)
-  ✓ API /api/v1/ versionada (base para integração futura com cmasm.erp)
+  [x] Inventário de instrumentos completo (~497 registros) — client-side, ordenação + filtros
+  [x] Importação CSV do Excel atual
+  [x] Cadastro 6.1 + base metrológica (domínios) + criticidade IGP + edição em massa
+  [x] Painel de alertas in-app (vencido / a vencer) — sem email
+  [x] Dashboard de status com filtros por seção/grandeza/prioridade
+  [x] Exportação do inventário (CSV / XLSX / PDF resumo)
+  [x] API /api/v1/ versionada (base para integração futura com cmasm.erp)
+  [ ] Registro de calibrações externas + upload de certificados PDF (entidade `calibracoes`)
+  [ ] Etiquetas com QR Code (impressão individual e em lote)
+  [ ] Gestão de laboratórios externos (acreditação, escopo)
+  [ ] Relatório de conformidade exportável para auditoria
+  [ ] Página pública de seção (tablet na bancada, sem login)
+  [ ] Autenticação JWT
 
 Critério de aceite da Fase 1:
   → Planilhas Excel descontinuadas para controle de validade
