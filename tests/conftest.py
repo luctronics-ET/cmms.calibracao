@@ -18,6 +18,7 @@ def client(tmp_path):
     db = TestingSession()
     db.add_all([
         models.Instrumento(codigo_interno="A-1", equipamento="MULTÍMETRO",
+                           marca="Fluke",
                            disciplina=models.Disciplina.ELE, sistema="MK-48",
                            ciclo_meses=12, data_validade=date(2020, 1, 1),
                            flag_origem="DESCALIBRADO"),

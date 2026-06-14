@@ -29,6 +29,18 @@ def test_busca_por_codigo(client):
     assert r.json()["total"] == 1
 
 
+def test_busca_por_marca(client):
+    r = client.get("/api/v1/instrumentos", params={"busca": "fluke"})
+    assert r.json()["total"] == 1
+    assert r.json()["itens"][0]["codigo_interno"] == "A-1"
+
+
+def test_busca_ignora_acentos(client):
+    r = client.get("/api/v1/instrumentos", params={"busca": "paquimetro"})
+    assert r.json()["total"] == 1
+    assert r.json()["itens"][0]["codigo_interno"] == "A-2"
+
+
 def test_get_um(client):
     primeiro = client.get("/api/v1/instrumentos").json()["itens"][0]["id"]
     r = client.get(f"/api/v1/instrumentos/{primeiro}")

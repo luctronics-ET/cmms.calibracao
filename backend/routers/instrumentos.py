@@ -1,5 +1,6 @@
 """Endpoints de inventário."""
 from __future__ import annotations
+import unicodedata
 from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -9,6 +10,10 @@ from backend.servico import instrumento_para_out
 from backend.schemas import ListaInstrumentos, InstrumentoOut
 
 router = APIRouter(prefix="/api/v1", tags=["instrumentos"])
+
+
+def _sem_acento(s: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c)).lower()
 
 
 @router.get("/instrumentos", response_model=ListaInstrumentos)
@@ -23,9 +28,9 @@ def listar(
     itens = [instrumento_para_out(i, hoje) for i in db.query(Instrumento).all()]
 
     if busca:
-        b = busca.lower()
-        itens = [i for i in itens if b in " ".join(
-            filter(None, [i.codigo_interno, i.serial, i.equipamento, i.modelo])).lower()]
+        b = _sem_acento(busca)
+        itens = [i for i in itens if b in _sem_acento(" ".join(
+            filter(None, [i.codigo_interno, i.serial, i.equipamento, i.modelo, i.marca])))]
     if disciplina:
         itens = [i for i in itens if i.disciplina == disciplina.upper()]
     if sistema:
