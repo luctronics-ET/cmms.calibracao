@@ -11,33 +11,47 @@
   <a href="inventario.html" class="muted">&larr; Inventário</a>
   <h1 id="titulo" style="margin-top:8px">Ficha do Instrumento</h1>
   <div id="status" style="margin-bottom:14px"></div>
-  <div class="card"><table><tbody id="campos"></tbody></table></div>
+  <a class="btn" id="btnEditar"><i class="bi bi-pencil"></i> Editar</a>
+  <div class="card" style="margin-top:14px"><table><tbody id="campos"></tbody></table></div>
+  <div id="anexos" class="card"></div>
 </main>
 <script>
 montarShell("");
 (async () => {
   const id = new URLSearchParams(location.search).get("id");
   const i = await SDK.get("/instrumentos/" + id);
+  document.getElementById("btnEditar").href = "cadastro.html?id=" + id;
   document.getElementById("titulo").textContent =
-    `${i.codigo_interno || "(sem código)"} — ${i.equipamento || ""}`;
-  let aviso = i.divergencia_flag
-    ? ` <span class="bdg amber">divergência flag×data</span>` : "";
+    `${i.codigo_interno || i.codigo_patrimonial || "(sem código)"} — ${i.equipamento || ""}`;
+  const classeLbl = { MAXIMA:"Prioridade máxima", MEDIA:"Média", BAIXA:"Baixa",
+    MUITO_BAIXA:"Muito baixa", NAO_CLASSIFICADO:"Não classificado" };
+  const div = i.divergencia_flag ? ' <span class="bdg amber">divergência flag×data</span>' : "";
+  const igp = i.igp == null ? "" :
+    ` · <span class="bdg slate">IGP ${i.igp} — ${classeLbl[i.classe_prioridade]}</span>`;
   document.getElementById("status").innerHTML = badgeStatus(i.status) +
-    (i.dias_restantes != null ? ` <span class="muted">(${i.dias_restantes} dias)</span>` : "") + aviso;
+    (i.dias_restantes != null ? ` <span class="muted">(${i.dias_restantes} dias)</span>` : "") +
+    ` <span class="bdg slate">${i.status_operacional}</span>` + div + igp;
   const linhas = [
-    ["Série", i.serial], ["Marca", i.marca], ["Modelo", i.modelo],
-    ["Faixa", [i.faixa, i.unidade_faixa].filter(Boolean).join(" ")],
+    ["Patrimônio", i.codigo_patrimonial], ["Série", i.serial],
+    ["Marca", i.marca], ["Modelo", i.modelo],
+    ["Família", i.familia_nome], ["Tipo", i.tipo_nome],
+    ["Grandeza", i.grandeza_nome], ["Unidade", i.unidade_simbolo],
+    ["Faixa", [i.faixa_min, i.faixa_max].some(v=>v!=null) ? `${i.faixa_min ?? ""} … ${i.faixa_max ?? ""}` : i.faixa],
+    ["Resolução", i.resolucao], ["EMP", i.emp],
     ["Disciplina", i.disciplina], ["Sistema", i.sistema],
+    ["Localização", [i.organizacao, i.unidade_org, i.secao, i.bancada].filter(Boolean).join(" → ")],
     ["Ciclo (meses)", i.ciclo_meses],
     ["Última calibração", fmtData(i.data_ultima_calibracao)],
     ["Validade", fmtData(i.data_validade)],
-    ["Flag de origem (CSV)", i.flag_origem],
     ["Organização calibradora", i.organizacao_calibradora],
-    ["Local de calibração", i.local_calibracao],
-    ["Custo estimado", i.custo_estimado], ["Custo contratado", i.custo_contratado],
     ["Certificado", i.certificado_ref], ["Observações", i.observacoes],
   ];
   document.getElementById("campos").innerHTML = linhas.map(([k, v]) =>
     `<tr><th style="width:200px">${k}</th><td>${esc(v) || "—"}</td></tr>`).join("");
+  document.getElementById("anexos").innerHTML =
+    `<b>Anexos</b><div style="margin-top:8px">` +
+    (i.foto_path ? `<a href="${i.foto_path}" target="_blank">Foto</a> ` : '<span class="muted">Sem foto</span> ') +
+    (i.manual_path ? ` · <a href="${i.manual_path}" target="_blank">Manual (PDF)</a>` : ' · <span class="muted">Sem manual</span>') +
+    `</div>`;
 })();
 </script></body></html>

@@ -18,6 +18,12 @@
       <option value="A_VENCER_30">A vencer 30d</option><option value="A_VENCER_60">A vencer 60d</option>
       <option value="VALIDO">Válido</option><option value="SEM_DATA">Sem data</option>
       <option value="BAIXADO">Baixado</option></select>
+    <select id="familia"><option value="">Família</option></select>
+    <select id="classe"><option value="">Prioridade</option>
+      <option value="MAXIMA">Máxima</option><option value="MEDIA">Média</option>
+      <option value="BAIXA">Baixa</option><option value="MUITO_BAIXA">Muito baixa</option>
+      <option value="NAO_CLASSIFICADO">Não classificado</option></select>
+    <a class="btn" href="cadastro.html" style="margin-left:auto"><i class="bi bi-plus-lg"></i> Novo</a>
   </div>
   <div class="muted" id="cont" style="margin-bottom:8px"></div>
   <div class="twrap"><table id="tab"><thead><tr>
@@ -29,13 +35,13 @@ montarShell("inventario.html");
 let timer;
 async function carregar() {
   const params = {
-    busca: busca.value, disciplina: disciplina.value,
-    sistema: sistema.value, status: status.value,
+    busca: busca.value, disciplina: disciplina.value, sistema: sistema.value,
+    status: status.value, familia_id: familia.value, classe_prioridade: classe.value,
   };
   const r = await SDK.get("/instrumentos", params);
   cont.textContent = `${r.total} instrumento(s)`;
   document.querySelector("#tab tbody").innerHTML = r.itens.map(i => `
-    <tr><td><a href="ficha.html?id=${i.id}">${esc(i.codigo_interno)}</a></td>
+    <tr><td><a href="ficha.html?id=${i.id}">${esc(i.codigo_interno || i.codigo_patrimonial)}</a></td>
     <td>${esc(i.equipamento)}</td><td>${esc([i.marca, i.modelo].filter(Boolean).join(" "))}</td>
     <td>${esc(i.disciplina)}</td><td>${esc(i.sistema)}</td>
     <td>${fmtData(i.data_validade)}</td><td>${badgeStatus(i.status)}</td></tr>`).join("")
@@ -43,13 +49,16 @@ async function carregar() {
 }
 const busca = document.getElementById("busca"), disciplina = document.getElementById("disciplina"),
       sistema = document.getElementById("sistema"), status = document.getElementById("status"),
+      familia = document.getElementById("familia"), classe = document.getElementById("classe"),
       cont = document.getElementById("cont");
-[disciplina, sistema, status].forEach(e => e.onchange = carregar);
+[disciplina, sistema, status, familia, classe].forEach(e => e.onchange = carregar);
 busca.oninput = () => { clearTimeout(timer); timer = setTimeout(carregar, 250); };
 (async () => {
   const r = await SDK.get("/instrumentos");
   [...new Set(r.itens.map(i => i.sistema).filter(Boolean))].sort()
     .forEach(s => sistema.add(new Option(s, s)));
+  const d = await SDK.get("/dominios");
+  d.familias.forEach(f => familia.add(new Option(f.nome, f.id)));
   carregar();
 })();
 </script></body></html>
