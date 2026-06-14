@@ -69,3 +69,36 @@ def calcular_status(
         or (cat == "CALIBRADO" and status == StatusCalibracao.VENCIDO)
     )
     return ResultadoStatus(status, dias, divergencia)
+
+
+import calendar
+
+
+def adicionar_meses(d: date, meses: int) -> date:
+    """Soma meses a uma data, fazendo clamp do dia ao último dia do mês alvo."""
+    total = d.month - 1 + meses
+    ano = d.year + total // 12
+    mes = total % 12 + 1
+    ultimo_dia = calendar.monthrange(ano, mes)[1]
+    return date(ano, mes, min(d.day, ultimo_dia))
+
+
+@dataclass(frozen=True)
+class DadosDerivados:
+    data_ultima_calibracao: date | None
+    data_validade: date | None
+    status_operacional: str | None  # "ATIVO" | "REPROVADO" | None (não alterar)
+
+
+def derivar_de_calibracoes(calibracoes) -> DadosDerivados:
+    """Deriva os campos do instrumento a partir da calibração mais recente.
+
+    Aceita qualquer objeto com .id, .data_calibracao, .data_validade, .resultado.
+    Lista vazia -> tudo None (instrumento não é alterado).
+    `resultado` é comparado com a string "REPROVADO" (Resultado é str-enum).
+    """
+    if not calibracoes:
+        return DadosDerivados(None, None, None)
+    ultima = max(calibracoes, key=lambda c: (c.data_calibracao, c.id))
+    status = "REPROVADO" if ultima.resultado == "REPROVADO" else "ATIVO"
+    return DadosDerivados(ultima.data_calibracao, ultima.data_validade, status)
