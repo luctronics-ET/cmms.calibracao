@@ -109,10 +109,30 @@ function atualizarCabecalhos() {
   document.querySelectorAll("#tab thead th[data-col]").forEach(th => {
     const col = th.dataset.col;
     const base = th.dataset.label || (th.dataset.label = th.textContent.trim());
-    const funil = th.dataset.filtro
-      ? ` <i class="bi bi-funnel${filtrosCol[th.dataset.filtro]?.size ? "-fill ativo" : ""}" data-filtro="${th.dataset.filtro}"></i>`
-      : "";
-    th.innerHTML = base + indicadorSort(col) + funil;
+
+    // estrutura estável criada uma única vez (não recriar a cada refresh,
+    // senão o nó do funil que ancora um popover aberto é destruído)
+    let ind = th.querySelector(".sort-ind");
+    if (!ind) {
+      th.textContent = base;
+      ind = document.createElement("span");
+      ind.className = "sort-ind";
+      th.appendChild(ind);
+      if (th.dataset.filtro) {
+        const f = document.createElement("i");
+        f.className = "bi bi-funnel";
+        f.dataset.filtro = th.dataset.filtro;
+        th.append(" ", f);
+      }
+    }
+
+    // a cada chamada: só atualiza o texto do indicador e a classe do funil
+    ind.textContent = indicadorSort(col);
+    const funil = th.querySelector("i[data-filtro]");
+    if (funil) {
+      const ativo = !!filtrosCol[th.dataset.filtro]?.size;
+      funil.className = ativo ? "bi bi-funnel-fill ativo" : "bi bi-funnel";
+    }
   });
   document.querySelectorAll(".funil-extra").forEach(b => {
     const f = b.dataset.filtro;
@@ -249,12 +269,15 @@ function abrirPopover(col, ancora) {
 }
 document.addEventListener("keydown", e => { if (e.key === "Escape") fecharPopover(); });
 
-// abre o popover a partir de qualquer elemento com data-filtro (funil no th ou na toolbar)
+// abre o popover só pelo ícone de funil (no th) ou pelos botões .funil-extra (toolbar)
 document.addEventListener("click", (e) => {
-  const alvo = e.target.closest("[data-filtro]");
-  if (!alvo) return;
+  const gatilho = e.target.closest(".bi-funnel, .bi-funnel-fill, .funil-extra");
+  if (!gatilho) return;
   e.stopPropagation();
-  abrirPopover(alvo.dataset.filtro, alvo);
+  // o data-filtro pode estar no próprio gatilho (funil no th) ou num ancestral (botão .funil-extra)
+  const ancora = gatilho.closest("[data-filtro]");
+  if (!ancora) return;
+  abrirPopover(ancora.dataset.filtro, ancora);
 });
 
 // ── Export ──────────────────────────────────────────────────────────────────
