@@ -12,8 +12,8 @@
   <div class="toolbar">
     <input type="search" id="busca" placeholder="Buscar por código, série, equipamento...">
     <a class="btn" href="cadastro.html"><i class="bi bi-plus-lg"></i> Novo</a>
-    <button class="funil-extra btn ghost" data-filtro="familia"><i class="bi bi-funnel"></i> Família</button>
-    <button class="funil-extra btn ghost" data-filtro="classe"><i class="bi bi-funnel"></i> Prioridade</button>
+    <button class="funil-extra btn ghost" data-filtro="marca"><i class="bi bi-funnel"></i> Marca</button>
+    <button class="funil-extra btn ghost" data-filtro="modelo"><i class="bi bi-funnel"></i> Modelo</button>
     <div class="export-grp" style="margin-left:auto">
       <span class="muted">Exportar:</span>
       <button class="btn ghost" data-exp="csv">CSV</button>
@@ -29,13 +29,15 @@
   <div class="muted" id="cont" style="margin-bottom:8px"></div>
   <div class="twrap"><table id="tab"><thead><tr>
     <th class="chk"><input type="checkbox" id="chkAll" title="Selecionar todos"></th>
-    <th data-col="codigo">Código</th>
-    <th data-col="equipamento">Equipamento</th>
-    <th data-col="marcamodelo">Marca/Modelo</th>
     <th data-col="disciplina" data-filtro="disciplina">Disc.</th>
+    <th data-col="equipamento" data-filtro="equipamento">Equipamento</th>
+    <th data-col="marcamodelo">Marca/Modelo</th>
+    <th data-col="codigo">Cód. interno</th>
+    <th data-col="serial">Série</th>
     <th data-col="sistema" data-filtro="sistema">Sistema</th>
-    <th data-col="data_validade">Validade</th>
     <th data-col="status" data-filtro="status">Status</th>
+    <th data-col="data_validade">Validade</th>
+    <th data-col="classe" data-filtro="classe">Prioridade</th>
   </tr></thead><tbody></tbody></table></div>
 </main>
 <script>
@@ -58,7 +60,6 @@ function valorCol(i, col) {
   switch (col) {
     case "codigo": return i.codigo_interno || i.codigo_patrimonial || "";
     case "marcamodelo": return [i.marca, i.modelo].filter(Boolean).join(" ");
-    case "familia": return i.familia_nome || "";
     case "classe": return i.classe_prioridade || "";
     default: return i[col] == null ? "" : i[col];
   }
@@ -66,9 +67,30 @@ function valorCol(i, col) {
 
 const semAcento = s => s.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
-// ordem de urgência para a coluna status
+// ordem de urgência (status) e de severidade (prioridade) — ordenação e popover
 const ORDEM_STATUS = ["VENCIDO", "A_VENCER_7", "A_VENCER_30", "A_VENCER_60",
                       "VALIDO", "SEM_DATA", "BAIXADO"];
+const ORDEM_CLASSE = ["MAXIMA", "MEDIA", "BAIXA", "MUITO_BAIXA", "NAO_CLASSIFICADO"];
+
+// rótulos curtos de prioridade (coluna + popover)
+const PRIO_LABEL = {
+  MAXIMA: "Máxima", MEDIA: "Média", BAIXA: "Baixa",
+  MUITO_BAIXA: "Muito baixa", NAO_CLASSIFICADO: "Não classificado",
+};
+const PRIO_BADGE = { MAXIMA: "red", MEDIA: "amber", BAIXA: "slate", MUITO_BAIXA: "slate" };
+
+// texto amigável para valores codificados nos popovers de filtro
+function rotuloValor(col, v) {
+  if (col === "status") return STATUS_LABEL[v] || v;
+  if (col === "classe") return PRIO_LABEL[v] || v;
+  return v;
+}
+
+function badgePrioridade(i) {
+  if (i.igp == null) return '<span class="muted">—</span>';
+  const c = i.classe_prioridade;
+  return `<span class="bdg ${PRIO_BADGE[c] || "slate"}">${PRIO_LABEL[c] || c}</span>`;
+}
 
 function cmp(a, b, col) {
   if (col === "data_validade") {
@@ -77,6 +99,9 @@ function cmp(a, b, col) {
   }
   if (col === "status") {
     return ORDEM_STATUS.indexOf(a.status) - ORDEM_STATUS.indexOf(b.status);
+  }
+  if (col === "classe") {
+    return ORDEM_CLASSE.indexOf(a.classe_prioridade) - ORDEM_CLASSE.indexOf(b.classe_prioridade);
   }
   const x = semAcento(String(valorCol(a, col))), y = semAcento(String(valorCol(b, col)));
   return x < y ? -1 : x > y ? 1 : 0;
@@ -149,11 +174,16 @@ function renderLinhas() {
   document.querySelector("#tab tbody").innerHTML = itensAtuais.map(i => `
     <tr data-id="${i.id}">
       <td class="chk"><input type="checkbox" class="rowchk" data-id="${i.id}" ${selecionados.has(i.id) ? "checked" : ""}></td>
+      <td>${esc(i.disciplina)}</td>
+      <td>${esc(i.equipamento)}</td>
+      <td>${esc([i.marca, i.modelo].filter(Boolean).join(" "))}</td>
       <td>${esc(i.codigo_interno || i.codigo_patrimonial)}</td>
-      <td>${esc(i.equipamento)}</td><td>${esc([i.marca, i.modelo].filter(Boolean).join(" "))}</td>
-      <td>${esc(i.disciplina)}</td><td>${esc(i.sistema)}</td>
-      <td>${fmtData(i.data_validade)}</td><td>${badgeStatus(i.status)}</td></tr>`).join("")
-    || `<tr><td colspan="8" class="muted">Nada encontrado.</td></tr>`;
+      <td>${esc(i.serial)}</td>
+      <td>${esc(i.sistema)}</td>
+      <td>${badgeStatus(i.status)}</td>
+      <td>${fmtData(i.data_validade)}</td>
+      <td>${badgePrioridade(i)}</td></tr>`).join("")
+    || `<tr><td colspan="10" class="muted">Nada encontrado.</td></tr>`;
 }
 
 // recomputa visiveis(), atualiza contagem/cabeçalhos e re-renderiza
@@ -235,10 +265,13 @@ function _foraPop(e) {
 }
 function abrirPopover(col, ancora) {
   fecharPopover();
-  const valores = [...new Set(todos.map(i => String(valorCol(i, col))).filter(v => v !== ""))].sort();
+  const valores = [...new Set(todos.map(i => String(valorCol(i, col))).filter(v => v !== ""))];
+  if (col === "status") valores.sort((a, b) => ORDEM_STATUS.indexOf(a) - ORDEM_STATUS.indexOf(b));
+  else if (col === "classe") valores.sort((a, b) => ORDEM_CLASSE.indexOf(a) - ORDEM_CLASSE.indexOf(b));
+  else valores.sort();
   const sel = filtrosCol[col] || new Set();
   const itens = valores.map(v =>
-    `<label><input type="checkbox" value="${esc(v)}" ${sel.has(v) ? "checked" : ""}> ${esc(v)}</label>`).join("");
+    `<label><input type="checkbox" value="${esc(v)}" ${sel.has(v) ? "checked" : ""}> ${esc(rotuloValor(col, v))}</label>`).join("");
   const pop = document.createElement("div");
   pop.id = "filtroPop";
   pop.className = "filtro-pop";
