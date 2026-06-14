@@ -186,3 +186,46 @@ class ExportRequest(BaseModel):
     """Pedido de exportação: ids na ordem desejada + formato do arquivo."""
     ids: list[int]
     formato: Literal["csv", "xlsx", "pdf"]
+
+
+class CalibracaoIn(BaseModel):
+    """Entrada de registro de calibração. validade/ciclo/status são derivados no servidor."""
+    data_calibracao: date
+    resultado: Literal["APROVADO", "APROVADO_COM_RESTRICOES", "REPROVADO"] = "APROVADO"
+    laboratorio: str | None = None
+    laboratorio_cnpj: str | None = None
+    acreditacao_rbc: bool = False
+    numero_cgcre: str | None = None
+    numero_certificado: str | None = None
+    custo: float | None = None
+    responsavel: str | None = None
+    observacoes: str | None = None
+
+
+class CalibracaoOut(BaseModel):
+    id: int
+    instrumento_id: int
+    data_calibracao: date
+    data_validade: date | None
+    ciclo_meses: int
+    resultado: str
+    laboratorio: str | None
+    laboratorio_cnpj: str | None
+    acreditacao_rbc: bool
+    numero_cgcre: str | None
+    numero_certificado: str | None
+    custo: float | None
+    responsavel: str | None
+    certificado_path: str | None
+    origem: str
+    observacoes: str | None
+
+
+class ListaCalibracoes(BaseModel):
+    total: int
+    itens: list[CalibracaoOut]
+
+
+class RegistroCalibracaoOut(BaseModel):
+    instrumento: InstrumentoOut
+    calibracao: CalibracaoOut
