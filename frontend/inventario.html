@@ -25,40 +25,105 @@
       <option value="NAO_CLASSIFICADO">Não classificado</option></select>
     <a class="btn" href="cadastro.html" style="margin-left:auto"><i class="bi bi-plus-lg"></i> Novo</a>
   </div>
+  <div class="selbar" id="selbar" style="display:none">
+    <b id="selcount">0 selecionado(s)</b>
+    <button class="btn" id="btnLote"><i class="bi bi-pencil-square"></i> Editar selecionados</button>
+    <button class="btn ghost" id="btnLimpar">Limpar seleção</button>
+  </div>
   <div class="muted" id="cont" style="margin-bottom:8px"></div>
   <div class="twrap"><table id="tab"><thead><tr>
+    <th class="chk"><input type="checkbox" id="chkAll" title="Selecionar todos"></th>
     <th>Código</th><th>Equipamento</th><th>Marca/Modelo</th><th>Disc.</th>
     <th>Sistema</th><th>Validade</th><th>Status</th></tr></thead><tbody></tbody></table></div>
 </main>
 <script>
 montarShell("inventario.html");
 let timer;
+let itensAtuais = [];
+const selecionados = new Set();
+
+const busca = document.getElementById("busca"), disciplina = document.getElementById("disciplina"),
+      sistema = document.getElementById("sistema"), status = document.getElementById("status"),
+      familia = document.getElementById("familia"), classe = document.getElementById("classe"),
+      cont = document.getElementById("cont"), chkAll = document.getElementById("chkAll"),
+      selbar = document.getElementById("selbar"), selcount = document.getElementById("selcount");
+
+function atualizarBarra() {
+  selcount.textContent = `${selecionados.size} selecionado(s)`;
+  selbar.style.display = selecionados.size ? "flex" : "none";
+}
+
+function renderLinhas() {
+  document.querySelector("#tab tbody").innerHTML = itensAtuais.map(i => `
+    <tr data-id="${i.id}">
+      <td class="chk"><input type="checkbox" class="rowchk" data-id="${i.id}" ${selecionados.has(i.id) ? "checked" : ""}></td>
+      <td>${esc(i.codigo_interno || i.codigo_patrimonial)}</td>
+      <td>${esc(i.equipamento)}</td><td>${esc([i.marca, i.modelo].filter(Boolean).join(" "))}</td>
+      <td>${esc(i.disciplina)}</td><td>${esc(i.sistema)}</td>
+      <td>${fmtData(i.data_validade)}</td><td>${badgeStatus(i.status)}</td></tr>`).join("")
+    || `<tr><td colspan="8" class="muted">Nada encontrado.</td></tr>`;
+}
+
 async function carregar() {
   const params = {
     busca: busca.value, disciplina: disciplina.value, sistema: sistema.value,
     status: status.value, familia_id: familia.value, classe_prioridade: classe.value,
   };
+  selecionados.clear();           // trocar filtro/busca limpa seleção
+  chkAll.checked = false;
+  atualizarBarra();
   const r = await SDK.get("/instrumentos", params);
+  itensAtuais = r.itens;
   cont.textContent = `${r.total} instrumento(s)`;
-  document.querySelector("#tab tbody").innerHTML = r.itens.map(i => `
-    <tr><td><a href="ficha.html?id=${i.id}">${esc(i.codigo_interno || i.codigo_patrimonial)}</a></td>
-    <td>${esc(i.equipamento)}</td><td>${esc([i.marca, i.modelo].filter(Boolean).join(" "))}</td>
-    <td>${esc(i.disciplina)}</td><td>${esc(i.sistema)}</td>
-    <td>${fmtData(i.data_validade)}</td><td>${badgeStatus(i.status)}</td></tr>`).join("")
-    || `<tr><td colspan="7" class="muted">Nada encontrado.</td></tr>`;
+  renderLinhas();
 }
-const busca = document.getElementById("busca"), disciplina = document.getElementById("disciplina"),
-      sistema = document.getElementById("sistema"), status = document.getElementById("status"),
-      familia = document.getElementById("familia"), classe = document.getElementById("classe"),
-      cont = document.getElementById("cont");
+
+// clique na linha (exceto checkbox) → modal da ficha
+document.querySelector("#tab tbody").addEventListener("click", async (e) => {
+  if (e.target.classList.contains("rowchk")) return;
+  const tr = e.target.closest("tr[data-id]");
+  if (!tr) return;
+  const i = await SDK.get("/instrumentos/" + tr.dataset.id);
+  abrirModal(`${i.codigo_interno || i.codigo_patrimonial || ""} — ${i.equipamento || ""}`,
+    renderFichaResumo(i),
+    `<a class="btn ghost" href="ficha.html?id=${i.id}">Ficha completa</a>
+     <a class="btn" href="cadastro.html?id=${i.id}">Editar</a>`);
+});
+
+// checkbox por linha
+document.querySelector("#tab tbody").addEventListener("change", (e) => {
+  if (!e.target.classList.contains("rowchk")) return;
+  const id = parseInt(e.target.dataset.id);
+  if (e.target.checked) selecionados.add(id); else selecionados.delete(id);
+  atualizarBarra();
+});
+
+chkAll.onchange = () => {
+  if (chkAll.checked) itensAtuais.forEach(i => selecionados.add(i.id));
+  else selecionados.clear();
+  renderLinhas();
+  atualizarBarra();
+};
+
+document.getElementById("btnLimpar").onclick = () => {
+  selecionados.clear(); chkAll.checked = false; renderLinhas(); atualizarBarra();
+};
+
+document.getElementById("btnLote").onclick = () => abrirEdicaoLote();
+
 [disciplina, sistema, status, familia, classe].forEach(e => e.onchange = carregar);
 busca.oninput = () => { clearTimeout(timer); timer = setTimeout(carregar, 250); };
+
 (async () => {
   const r = await SDK.get("/instrumentos");
   [...new Set(r.itens.map(i => i.sistema).filter(Boolean))].sort()
     .forEach(s => sistema.add(new Option(s, s)));
-  const d = await SDK.get("/dominios");
-  d.familias.forEach(f => familia.add(new Option(f.nome, f.id)));
+  window._dominios = await SDK.get("/dominios");
+  window._dominios.familias.forEach(f => familia.add(new Option(f.nome, f.id)));
   carregar();
 })();
-</script></body></html>
+
+// abrirEdicaoLote() é definida na Task 5 (script adicional)
+function abrirEdicaoLote() { alert("Edição em lote — implementada na próxima etapa."); }
+</script>
+</body></html>
