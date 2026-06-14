@@ -55,3 +55,40 @@ function montarShell(ativo) {
       ${links}
     </div>`);
 }
+
+// ── Domínios e IGP (cadastro) ───────────────────────────────────────────────
+SDK.post = async (path, body) => {
+  const r = await fetch(API + path, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (r.status === 409) throw new Error("Código patrimonial já existe");
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
+};
+SDK.put = async (path, body) => {
+  const r = await fetch(API + path, {
+    method: "PUT", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (r.status === 409) throw new Error("Código patrimonial já existe");
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
+};
+
+const CLASSE_LABEL = {
+  MAXIMA: "Prioridade máxima", MEDIA: "Média", BAIXA: "Baixa",
+  MUITO_BAIXA: "Muito baixa", NAO_CLASSIFICADO: "Não classificado",
+};
+
+// Espelha backend/criticidade.py
+function calcIgpClient(fu, nc, ab, cm, ci) {
+  const v = [fu, nc, ab, cm, ci];
+  if (v.some(x => !x)) return { igp: null, classe: "NAO_CLASSIFICADO" };
+  const igp = fu * 1 + nc * 2 + ab * 1 + cm * 2 + ci * 1;
+  let classe = "MUITO_BAIXA";
+  if (igp >= 18) classe = "MAXIMA";
+  else if (igp >= 14) classe = "MEDIA";
+  else if (igp >= 11) classe = "BAIXA";
+  return { igp, classe };
+}
