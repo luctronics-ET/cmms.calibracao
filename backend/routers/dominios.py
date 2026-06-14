@@ -21,7 +21,6 @@ def listar_dominios(db: Session = Depends(get_db), familia_id: int | None = Quer
     tipos = q_tipos.order_by(TipoInstrumento.ordem).all()
     grandezas = q_grand.order_by(Grandeza.ordem).all()
 
-    def fam(o): return {"id": o.id, "nome": o.nome}
     return DominiosOut(
         familias=[ItemDominio(id=f.id, nome=f.nome) for f in familias],
         unidades=[ItemDominio(id=u.id, nome=u.nome, simbolo=u.simbolo) for u in unidades],
