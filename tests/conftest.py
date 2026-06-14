@@ -18,6 +18,8 @@ def client(tmp_path, monkeypatch):
 
     import backend.routers.instrumentos as _instr_mod
     monkeypatch.setattr(_instr_mod, "UPLOAD_DIR", tmp_path / "uploads")
+    import backend.routers.calibracoes as _cal_mod
+    monkeypatch.setattr(_cal_mod, "UPLOAD_DIR", tmp_path / "uploads")
 
     db = TestingSession()
     seed_dominios(db)

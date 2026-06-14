@@ -66,3 +66,23 @@ def registrar(inst_id: int, dados: CalibracaoIn, db: Session = Depends(get_db)):
         instrumento=instrumento_para_out(inst, date.today()),
         calibracao=calibracao_para_out(cal),
     )
+
+
+@router.post("/instrumentos/{inst_id}/calibracoes/{cal_id}/certificado",
+             response_model=CalibracaoOut)
+async def upload_certificado(inst_id: int, cal_id: int,
+                             arquivo: UploadFile = File(...),
+                             db: Session = Depends(get_db)):
+    cal = db.get(Calibracao, cal_id)
+    if not cal or cal.instrumento_id != inst_id:
+        raise HTTPException(status_code=404, detail="Calibração não encontrada")
+    if (arquivo.content_type or "") != "application/pdf":
+        raise HTTPException(status_code=415, detail="Envie um PDF")
+    destino_dir = UPLOAD_DIR / str(inst_id)
+    destino_dir.mkdir(parents=True, exist_ok=True)
+    nome = f"cert_{cal_id}.pdf"
+    (destino_dir / nome).write_bytes(await arquivo.read())
+    cal.certificado_path = f"uploads/{inst_id}/{nome}"
+    db.commit()
+    db.refresh(cal)
+    return calibracao_para_out(cal)
