@@ -1,0 +1,43 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SisCalib · Ficha</title>
+<link rel="stylesheet" href="vendor/fonts.css">
+<link rel="stylesheet" href="vendor/bootstrap-icons.min.css">
+<link rel="stylesheet" href="vendor/xcmasm-govbr.css">
+<link rel="stylesheet" href="siscalib.css">
+</head><body class="app">
+<script src="app.js"></script>
+<main class="main">
+  <a href="inventario.html" class="muted">&larr; Inventário</a>
+  <h1 id="titulo" style="margin-top:8px">Ficha do Instrumento</h1>
+  <div id="status" style="margin-bottom:14px"></div>
+  <div class="card"><table><tbody id="campos"></tbody></table></div>
+</main>
+<script>
+montarShell("");
+(async () => {
+  const id = new URLSearchParams(location.search).get("id");
+  const i = await SDK.get("/instrumentos/" + id);
+  document.getElementById("titulo").textContent =
+    `${i.codigo_interno || "(sem código)"} — ${i.equipamento || ""}`;
+  let aviso = i.divergencia_flag
+    ? ` <span class="bdg amber">divergência flag×data</span>` : "";
+  document.getElementById("status").innerHTML = badgeStatus(i.status) +
+    (i.dias_restantes != null ? ` <span class="muted">(${i.dias_restantes} dias)</span>` : "") + aviso;
+  const linhas = [
+    ["Série", i.serial], ["Marca", i.marca], ["Modelo", i.modelo],
+    ["Faixa", [i.faixa, i.unidade_faixa].filter(Boolean).join(" ")],
+    ["Disciplina", i.disciplina], ["Sistema", i.sistema],
+    ["Ciclo (meses)", i.ciclo_meses],
+    ["Última calibração", fmtData(i.data_ultima_calibracao)],
+    ["Validade", fmtData(i.data_validade)],
+    ["Flag de origem (CSV)", i.flag_origem],
+    ["Organização calibradora", i.organizacao_calibradora],
+    ["Local de calibração", i.local_calibracao],
+    ["Custo estimado", i.custo_estimado], ["Custo contratado", i.custo_contratado],
+    ["Certificado", i.certificado_ref], ["Observações", i.observacoes],
+  ];
+  document.getElementById("campos").innerHTML = linhas.map(([k, v]) =>
+    `<tr><th style="width:200px">${k}</th><td>${esc(v) || "—"}</td></tr>`).join("");
+})();
+</script></body></html>

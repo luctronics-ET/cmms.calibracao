@@ -1,0 +1,55 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SisCalib · Inventário</title>
+<link rel="stylesheet" href="vendor/fonts.css">
+<link rel="stylesheet" href="vendor/bootstrap-icons.min.css">
+<link rel="stylesheet" href="vendor/xcmasm-govbr.css">
+<link rel="stylesheet" href="siscalib.css">
+</head><body class="app">
+<script src="app.js"></script>
+<main class="main">
+  <h1>Inventário de Instrumentos</h1>
+  <div class="toolbar">
+    <input type="search" id="busca" placeholder="Buscar por código, série, equipamento...">
+    <select id="disciplina"><option value="">Disciplina</option><option>ELE</option><option>MEC</option></select>
+    <select id="sistema"><option value="">Sistema</option></select>
+    <select id="status"><option value="">Status</option>
+      <option value="VENCIDO">Vencido</option><option value="A_VENCER_7">A vencer 7d</option>
+      <option value="A_VENCER_30">A vencer 30d</option><option value="A_VENCER_60">A vencer 60d</option>
+      <option value="VALIDO">Válido</option><option value="SEM_DATA">Sem data</option>
+      <option value="BAIXADO">Baixado</option></select>
+  </div>
+  <div class="muted" id="cont" style="margin-bottom:8px"></div>
+  <div class="twrap"><table id="tab"><thead><tr>
+    <th>Código</th><th>Equipamento</th><th>Marca/Modelo</th><th>Disc.</th>
+    <th>Sistema</th><th>Validade</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+</main>
+<script>
+montarShell("inventario.html");
+let timer;
+async function carregar() {
+  const params = {
+    busca: busca.value, disciplina: disciplina.value,
+    sistema: sistema.value, status: status.value,
+  };
+  const r = await SDK.get("/instrumentos", params);
+  cont.textContent = `${r.total} instrumento(s)`;
+  document.querySelector("#tab tbody").innerHTML = r.itens.map(i => `
+    <tr><td><a href="ficha.html?id=${i.id}">${esc(i.codigo_interno)}</a></td>
+    <td>${esc(i.equipamento)}</td><td>${esc([i.marca, i.modelo].filter(Boolean).join(" "))}</td>
+    <td>${esc(i.disciplina)}</td><td>${esc(i.sistema)}</td>
+    <td>${fmtData(i.data_validade)}</td><td>${badgeStatus(i.status)}</td></tr>`).join("")
+    || `<tr><td colspan="7" class="muted">Nada encontrado.</td></tr>`;
+}
+const busca = document.getElementById("busca"), disciplina = document.getElementById("disciplina"),
+      sistema = document.getElementById("sistema"), status = document.getElementById("status"),
+      cont = document.getElementById("cont");
+[disciplina, sistema, status].forEach(e => e.onchange = carregar);
+busca.oninput = () => { clearTimeout(timer); timer = setTimeout(carregar, 250); };
+(async () => {
+  const r = await SDK.get("/instrumentos");
+  [...new Set(r.itens.map(i => i.sistema).filter(Boolean))].sort()
+    .forEach(s => sistema.add(new Option(s, s)));
+  carregar();
+})();
+</script></body></html>

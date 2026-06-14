@@ -1,0 +1,43 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SisCalib · Dashboard</title>
+<link rel="stylesheet" href="vendor/fonts.css">
+<link rel="stylesheet" href="vendor/bootstrap-icons.min.css">
+<link rel="stylesheet" href="vendor/xcmasm-govbr.css">
+<link rel="stylesheet" href="siscalib.css">
+</head><body class="app">
+<script src="app.js"></script>
+<main class="main">
+  <h1>Dashboard de Calibração</h1>
+  <div class="kpi-g" id="kpis"></div>
+  <div class="card"><b>Status do inventário</b><div id="barra"></div><div id="legenda" class="muted"></div></div>
+  <div class="card"><b>Próximos a vencer</b><div class="twrap" style="margin-top:10px"><table id="tab"><thead>
+    <tr><th>Código</th><th>Instrumento</th><th>Sistema</th><th>Validade</th><th>Status</th></tr>
+  </thead><tbody></tbody></table></div></div>
+</main>
+<script>
+montarShell("index.html");
+(async () => {
+  const k = await SDK.get("/dashboard/kpis");
+  document.getElementById("kpis").innerHTML = [
+    ["", "Total", k.total], ["red", "Vencidos", k.vencidos],
+    ["amber", "A vencer 30d", k.a_vencer_30], ["blue", "Sem data", k.sem_data],
+    ["", "Sistemas", k.n_sistemas],
+  ].map(([c, l, v]) => `<div class="kpi ${c}"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("");
+
+  const cor = { VENCIDO: "var(--red)", A_VENCER_7: "var(--orange)", A_VENCER_30: "var(--amber)",
+                A_VENCER_60: "var(--amber)", VALIDO: "var(--green)", SEM_DATA: "var(--tx3)", BAIXADO: "var(--bd2)" };
+    const tot = k.por_status.reduce((s, x) => s + x.total, 0) || 1;
+  document.getElementById("barra").innerHTML = `<div class="bar">` +
+    k.por_status.map(s => `<span title="${s.label}: ${s.total}" style="width:${100 * s.total / tot}%;background:${cor[s.status] || "var(--bd2)"}"></span>`).join("") + `</div>`;
+  document.getElementById("legenda").textContent =
+    k.por_status.map(s => `${s.label}: ${s.total}`).join("   ·   ");
+
+  const alertas = await SDK.get("/alertas");
+  document.querySelector("#tab tbody").innerHTML = alertas.slice(0, 20).map(i => `
+    <tr><td><a href="ficha.html?id=${i.id}">${esc(i.codigo_interno)}</a></td>
+    <td>${esc(i.equipamento)}</td><td>${esc(i.sistema)}</td>
+    <td>${fmtData(i.data_validade)}</td><td>${badgeStatus(i.status)}</td></tr>`).join("")
+    || `<tr><td colspan="5" class="muted">Nenhum alerta. Importe o inventário em "Importar".</td></tr>`;
+})();
+</script></body></html>

@@ -1,0 +1,37 @@
+# SisCalib — Sistema de Gestão Metrológica (fatia fina)
+
+App standalone para controle de calibração de instrumentos. FastAPI + SQLite + frontend vanilla.
+
+## Rodar em desenvolvimento
+```bash
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/alembic upgrade head
+.venv/bin/python -m uvicorn backend.main:app --reload --port 8080
+```
+Acesse http://localhost:8080
+
+## Rodar via Docker
+```bash
+docker build -t siscalib:latest .
+docker run -d --name siscalib --restart unless-stopped \
+  -p 8080:8080 -v siscalib_data:/data siscalib:latest
+```
+
+## Importar o inventário
+1. Abra **Importar** no menu.
+2. Envie o CSV (ex.: `CMASM_Controle de Calibracao ... .csv`).
+3. Revise o relatório dry-run (linhas válidas / avisos / erros).
+4. Clique **Confirmar importação**.
+
+## Backup
+O estado todo está em `/data/siscalib.db` — basta copiar esse arquivo.
+
+## Testes
+```bash
+.venv/bin/python -m pytest tests/ -q
+```
+
+## Fora desta fatia (próximas entregas da Fase 1)
+Autenticação JWT, QR Code/etiquetas, upload de certificado PDF, gestão de
+laboratórios, página pública por seção, export PDF. Ver
+`docs/superpowers/specs/2026-06-14-siscalib-fatia-fina-design.md`.
