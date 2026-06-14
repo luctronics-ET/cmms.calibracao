@@ -11,19 +11,15 @@
   <h1>Inventário de Instrumentos</h1>
   <div class="toolbar">
     <input type="search" id="busca" placeholder="Buscar por código, série, equipamento...">
-    <select id="disciplina"><option value="">Disciplina</option><option>ELE</option><option>MEC</option></select>
-    <select id="sistema"><option value="">Sistema</option></select>
-    <select id="status"><option value="">Status</option>
-      <option value="VENCIDO">Vencido</option><option value="A_VENCER_7">A vencer 7d</option>
-      <option value="A_VENCER_30">A vencer 30d</option><option value="A_VENCER_60">A vencer 60d</option>
-      <option value="VALIDO">Válido</option><option value="SEM_DATA">Sem data</option>
-      <option value="BAIXADO">Baixado</option></select>
-    <select id="familia"><option value="">Família</option></select>
-    <select id="classe"><option value="">Prioridade</option>
-      <option value="MAXIMA">Máxima</option><option value="MEDIA">Média</option>
-      <option value="BAIXA">Baixa</option><option value="MUITO_BAIXA">Muito baixa</option>
-      <option value="NAO_CLASSIFICADO">Não classificado</option></select>
-    <a class="btn" href="cadastro.html" style="margin-left:auto"><i class="bi bi-plus-lg"></i> Novo</a>
+    <a class="btn" href="cadastro.html"><i class="bi bi-plus-lg"></i> Novo</a>
+    <button class="funil-extra btn ghost" data-filtro="familia"><i class="bi bi-funnel"></i> Família</button>
+    <button class="funil-extra btn ghost" data-filtro="classe"><i class="bi bi-funnel"></i> Prioridade</button>
+    <div class="export-grp" style="margin-left:auto">
+      <span class="muted">Exportar:</span>
+      <button class="btn ghost" data-exp="csv">CSV</button>
+      <button class="btn ghost" data-exp="xlsx">XLSX</button>
+      <button class="btn ghost" data-exp="pdf">PDF</button>
+    </div>
   </div>
   <div class="selbar" id="selbar" style="display:none">
     <b id="selcount">0 selecionado(s)</b>
@@ -33,20 +29,96 @@
   <div class="muted" id="cont" style="margin-bottom:8px"></div>
   <div class="twrap"><table id="tab"><thead><tr>
     <th class="chk"><input type="checkbox" id="chkAll" title="Selecionar todos"></th>
-    <th>Código</th><th>Equipamento</th><th>Marca/Modelo</th><th>Disc.</th>
-    <th>Sistema</th><th>Validade</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+    <th data-col="codigo">Código</th>
+    <th data-col="equipamento">Equipamento</th>
+    <th data-col="marcamodelo">Marca/Modelo</th>
+    <th data-col="disciplina" data-filtro="disciplina">Disc.</th>
+    <th data-col="sistema" data-filtro="sistema">Sistema</th>
+    <th data-col="data_validade">Validade</th>
+    <th data-col="status" data-filtro="status">Status</th>
+  </tr></thead><tbody></tbody></table></div>
 </main>
 <script>
 montarShell("inventario.html");
 let timer;
-let itensAtuais = [];
+let todos = [];                       // lista completa carregada uma vez
+let itensAtuais = [];                 // = visiveis(); fonte do render e do export
 const selecionados = new Set();
+const filtrosCol = {};                // { coluna: Set(valores) }
+let ordenacao = { coluna: null, dir: null };  // dir: "asc" | "desc"
 
-const busca = document.getElementById("busca"), disciplina = document.getElementById("disciplina"),
-      sistema = document.getElementById("sistema"), status = document.getElementById("status"),
-      familia = document.getElementById("familia"), classe = document.getElementById("classe"),
-      cont = document.getElementById("cont"), chkAll = document.getElementById("chkAll"),
-      selbar = document.getElementById("selbar"), selcount = document.getElementById("selcount");
+const busca = document.getElementById("busca"),
+      cont = document.getElementById("cont"),
+      chkAll = document.getElementById("chkAll"),
+      selbar = document.getElementById("selbar"),
+      selcount = document.getElementById("selcount");
+
+// valor de uma coluna para filtro/ordenação/exibição
+function valorCol(i, col) {
+  switch (col) {
+    case "codigo": return i.codigo_interno || i.codigo_patrimonial || "";
+    case "marcamodelo": return [i.marca, i.modelo].filter(Boolean).join(" ");
+    case "familia": return i.familia_nome || "";
+    case "classe": return i.classe_prioridade || "";
+    default: return i[col] == null ? "" : i[col];
+  }
+}
+
+const semAcento = s => s.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+// ordem de urgência para a coluna status
+const ORDEM_STATUS = ["VENCIDO", "A_VENCER_7", "A_VENCER_30", "A_VENCER_60",
+                      "VALIDO", "SEM_DATA", "BAIXADO"];
+
+function cmp(a, b, col) {
+  if (col === "data_validade") {
+    const x = a.data_validade || "9999-99-99", y = b.data_validade || "9999-99-99";
+    return x < y ? -1 : x > y ? 1 : 0;
+  }
+  if (col === "status") {
+    return ORDEM_STATUS.indexOf(a.status) - ORDEM_STATUS.indexOf(b.status);
+  }
+  const x = semAcento(String(valorCol(a, col))), y = semAcento(String(valorCol(b, col)));
+  return x < y ? -1 : x > y ? 1 : 0;
+}
+
+// fonte única: aplica busca → filtros → ordenação sobre `todos`
+function visiveis() {
+  let r = todos;
+  if (busca.value.trim()) {
+    const b = semAcento(busca.value);
+    r = r.filter(i => semAcento([i.codigo_interno, i.serial, i.equipamento, i.modelo, i.marca]
+      .filter(Boolean).join(" ")).includes(b));
+  }
+  for (const [col, sel] of Object.entries(filtrosCol)) {
+    if (sel && sel.size) r = r.filter(i => sel.has(String(valorCol(i, col))));
+  }
+  if (ordenacao.coluna) {
+    const sinal = ordenacao.dir === "desc" ? -1 : 1;
+    r = [...r].sort((a, b) => sinal * cmp(a, b, ordenacao.coluna));
+  }
+  return r;
+}
+
+function indicadorSort(col) {
+  if (ordenacao.coluna !== col) return "";
+  return ordenacao.dir === "asc" ? " ▲" : ordenacao.dir === "desc" ? " ▼" : "";
+}
+
+function atualizarCabecalhos() {
+  document.querySelectorAll("#tab thead th[data-col]").forEach(th => {
+    const col = th.dataset.col;
+    const base = th.dataset.label || (th.dataset.label = th.textContent.trim());
+    const funil = th.dataset.filtro
+      ? ` <i class="bi bi-funnel${filtrosCol[th.dataset.filtro]?.size ? "-fill ativo" : ""}" data-filtro="${th.dataset.filtro}"></i>`
+      : "";
+    th.innerHTML = base + indicadorSort(col) + funil;
+  });
+  document.querySelectorAll(".funil-extra").forEach(b => {
+    const f = b.dataset.filtro;
+    b.classList.toggle("ativo", !!filtrosCol[f]?.size);
+  });
+}
 
 function atualizarBarra() {
   selcount.textContent = `${selecionados.size} selecionado(s)`;
@@ -64,18 +136,27 @@ function renderLinhas() {
     || `<tr><td colspan="8" class="muted">Nada encontrado.</td></tr>`;
 }
 
-async function carregar() {
-  const params = {
-    busca: busca.value, disciplina: disciplina.value, sistema: sistema.value,
-    status: status.value, familia_id: familia.value, classe_prioridade: classe.value,
-  };
-  selecionados.clear();           // trocar filtro/busca limpa seleção
+// recomputa visiveis(), atualiza contagem/cabeçalhos e re-renderiza
+function refrescar() {
+  itensAtuais = visiveis();
+  cont.textContent = `${itensAtuais.length} de ${todos.length} instrumento(s)`;
+  atualizarCabecalhos();
+  renderLinhas();
+}
+
+// qualquer mudança de busca/filtro/ordenação limpa a seleção
+function mudouVisao() {
+  selecionados.clear();
   chkAll.checked = false;
   atualizarBarra();
-  const r = await SDK.get("/instrumentos", params);
-  itensAtuais = r.itens;
-  cont.textContent = `${r.total} instrumento(s)`;
-  renderLinhas();
+  refrescar();
+}
+
+// recarrega do backend (após edições) preservando filtros/ordenação
+async function recarregar() {
+  const r = await SDK.get("/instrumentos");
+  todos = r.itens;
+  refrescar();
 }
 
 // clique na linha (exceto checkbox) → modal da ficha
@@ -111,16 +192,91 @@ document.getElementById("btnLimpar").onclick = () => {
 
 document.getElementById("btnLote").onclick = () => abrirEdicaoLote();
 
-[disciplina, sistema, status, familia, classe].forEach(e => e.onchange = carregar);
-busca.oninput = () => { clearTimeout(timer); timer = setTimeout(carregar, 250); };
+// ── Ordenação por clique no cabeçalho ───────────────────────────────────────
+document.querySelector("#tab thead").addEventListener("click", (e) => {
+  if (e.target.closest(".bi-funnel, .bi-funnel-fill")) return;  // funil tem handler próprio
+  const th = e.target.closest("th[data-col]");
+  if (!th) return;
+  const col = th.dataset.col;
+  if (ordenacao.coluna !== col) ordenacao = { coluna: col, dir: "asc" };
+  else if (ordenacao.dir === "asc") ordenacao.dir = "desc";
+  else ordenacao = { coluna: null, dir: null };   // 3º clique: sem ordem
+  mudouVisao();
+});
 
+// ── Popover de filtro multi-seleção ─────────────────────────────────────────
+function fecharPopover() {
+  document.getElementById("filtroPop")?.remove();
+  document.removeEventListener("click", _foraPop, true);
+}
+function _foraPop(e) {
+  const pop = document.getElementById("filtroPop");
+  if (pop && !pop.contains(e.target) && !e.target.closest("[data-filtro]")) fecharPopover();
+}
+function abrirPopover(col, ancora) {
+  fecharPopover();
+  const valores = [...new Set(todos.map(i => String(valorCol(i, col))).filter(v => v !== ""))].sort();
+  const sel = filtrosCol[col] || new Set();
+  const itens = valores.map(v =>
+    `<label><input type="checkbox" value="${esc(v)}" ${sel.has(v) ? "checked" : ""}> ${esc(v)}</label>`).join("");
+  const pop = document.createElement("div");
+  pop.id = "filtroPop";
+  pop.className = "filtro-pop";
+  pop.innerHTML = `<div class="filtro-acts">
+      <button type="button" data-act="all">Marcar todos</button>
+      <button type="button" data-act="none">Limpar</button></div>
+    <div class="filtro-itens">${itens || '<span class="muted">Sem valores</span>'}</div>`;
+  document.body.appendChild(pop);
+  const r = ancora.getBoundingClientRect();
+  pop.style.top = (r.bottom + window.scrollY + 4) + "px";
+  pop.style.left = (r.left + window.scrollX) + "px";
+
+  pop.addEventListener("change", () => {
+    const marcados = [...pop.querySelectorAll("input:checked")].map(c => c.value);
+    if (marcados.length) filtrosCol[col] = new Set(marcados);
+    else delete filtrosCol[col];
+    mudouVisao();
+  });
+  pop.querySelector('[data-act="all"]').onclick = () => {
+    pop.querySelectorAll("input").forEach(c => c.checked = true);
+    pop.dispatchEvent(new Event("change"));
+  };
+  pop.querySelector('[data-act="none"]').onclick = () => {
+    pop.querySelectorAll("input").forEach(c => c.checked = false);
+    pop.dispatchEvent(new Event("change"));
+  };
+  setTimeout(() => document.addEventListener("click", _foraPop, true), 0);
+}
+document.addEventListener("keydown", e => { if (e.key === "Escape") fecharPopover(); });
+
+// abre o popover a partir de qualquer elemento com data-filtro (funil no th ou na toolbar)
+document.addEventListener("click", (e) => {
+  const alvo = e.target.closest("[data-filtro]");
+  if (!alvo) return;
+  e.stopPropagation();
+  abrirPopover(alvo.dataset.filtro, alvo);
+});
+
+// ── Export ──────────────────────────────────────────────────────────────────
+document.querySelector(".export-grp").addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-exp]");
+  if (!btn) return;
+  const ids = itensAtuais.map(i => i.id);
+  if (!ids.length) { alert("Nada a exportar."); return; }
+  const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = "gerando…";
+  try { await SDK.exportar(ids, btn.dataset.exp); }
+  catch (err) { alert("Falha ao exportar: " + err.message); }
+  finally { btn.disabled = false; btn.textContent = orig; }
+});
+
+// busca reaproveita o debounce, mas filtra client-side
+busca.oninput = () => { clearTimeout(timer); timer = setTimeout(mudouVisao, 200); };
+
+// inicialização: carrega tudo uma vez
 (async () => {
-  const r = await SDK.get("/instrumentos");
-  [...new Set(r.itens.map(i => i.sistema).filter(Boolean))].sort()
-    .forEach(s => sistema.add(new Option(s, s)));
   window._dominios = await SDK.get("/dominios");
-  window._dominios.familias.forEach(f => familia.add(new Option(f.nome, f.id)));
-  carregar();
+  await recarregar();
 })();
 
 // ── Edição em lote ──────────────────────────────────────────────────────────
@@ -218,7 +374,7 @@ function abrirEdicaoLote() {
     }
     if (erros.length) { msg.innerHTML = `<span class="sev-erro">${esc(erros.join(" | "))}</span>`; }
     else { fecharModal(); }
-    await carregar();
+    await recarregar();
   };
 }
 </script>
