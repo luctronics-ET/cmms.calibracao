@@ -280,3 +280,47 @@ def test_patch_status_null_nao_quebra(client):
     assert r.status_code == 200
     assert r.json()["status_operacional"] == "EM_MANUTENCAO"   # preservado, não nulo
     assert r.json()["secao"] == "B1"
+
+
+def test_export_formato_invalido_422(client):
+    primeiro = client.get("/api/v1/instrumentos").json()["itens"][0]["id"]
+    r = client.post("/api/v1/instrumentos/export",
+                    json={"ids": [primeiro], "formato": "docx"})
+    assert r.status_code == 422
+
+
+def test_export_csv(client):
+    itens = client.get("/api/v1/instrumentos").json()["itens"]
+    ids = [i["id"] for i in itens]
+    r = client.post("/api/v1/instrumentos/export", json={"ids": ids, "formato": "csv"})
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/csv")
+    assert "attachment" in r.headers["content-disposition"]
+    texto = r.content.decode("utf-8-sig")
+    assert "Código interno" in texto          # cabeçalho legível
+    assert "A-1" in texto and "A-2" in texto and "A-3" in texto
+
+
+def test_export_csv_preserva_ordem_dos_ids(client):
+    itens = {i["codigo_interno"]: i for i in client.get("/api/v1/instrumentos").json()["itens"]}
+    ids = [itens["A-3"]["id"], itens["A-1"]["id"], itens["A-2"]["id"]]
+    r = client.post("/api/v1/instrumentos/export", json={"ids": ids, "formato": "csv"})
+    linhas = r.content.decode("utf-8-sig").splitlines()
+    # linha 0 = cabeçalho; depois os códigos na ordem dos ids
+    assert linhas[1].startswith("A-3")
+    assert linhas[2].startswith("A-1")
+    assert linhas[3].startswith("A-2")
+
+
+def test_export_ignora_ids_inexistentes(client):
+    primeiro = client.get("/api/v1/instrumentos").json()["itens"][0]["id"]
+    r = client.post("/api/v1/instrumentos/export",
+                    json={"ids": [primeiro, 99999], "formato": "csv"})
+    assert r.status_code == 200
+    linhas = r.content.decode("utf-8-sig").splitlines()
+    assert len(linhas) == 2     # cabeçalho + 1 item válido
+
+
+def test_export_ids_vazio_400(client):
+    r = client.post("/api/v1/instrumentos/export", json={"ids": [], "formato": "csv"})
+    assert r.status_code == 400
