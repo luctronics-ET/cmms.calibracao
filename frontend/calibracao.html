@@ -1,0 +1,87 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SisCalib · Calibrações</title>
+<link rel="stylesheet" href="vendor/fonts.css">
+<link rel="stylesheet" href="vendor/bootstrap-icons.min.css">
+<link rel="stylesheet" href="vendor/xcmasm-govbr.css">
+<link rel="stylesheet" href="siscalib.css">
+<style>
+.busca-res{position:absolute;z-index:1100;background:var(--sf);border:1px solid var(--bd2);
+  border-radius:var(--r);min-width:320px;max-height:340px;overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.busca-res button{display:block;width:100%;text-align:left;background:none;border:none;
+  color:var(--tx);padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--bd)}
+.busca-res button:hover{background:var(--sf2)}
+.busca-res .sub{color:var(--tx3);font-size:12px}
+</style>
+</head><body class="app">
+<script src="app.js"></script>
+<main class="main">
+  <h1>Registro de Calibrações</h1>
+  <div class="card">
+    <div class="fld" style="position:relative;margin-bottom:0">
+      <label>Instrumento</label>
+      <input type="search" id="buscaInst" placeholder="Buscar por código, série, equipamento..." autocomplete="off">
+      <div id="buscaRes" class="busca-res" style="display:none"></div>
+    </div>
+  </div>
+  <div id="selecionado"></div>
+</main>
+<script>
+montarShell("calibracao.html");
+
+const buscaInst = document.getElementById("buscaInst"),
+      buscaRes = document.getElementById("buscaRes"),
+      selecionado = document.getElementById("selecionado");
+let timer;
+
+async function buscar(q) {
+  let dados;
+  try { dados = await SDK.get("/instrumentos", { busca: q }); }
+  catch (err) { buscaRes.innerHTML = `<div class="sub" style="padding:8px 12px">Erro: ${esc(err.message)}</div>`; buscaRes.style.display = "block"; return; }
+  const itens = dados.itens.slice(0, 30);
+  if (!itens.length) {
+    buscaRes.innerHTML = '<div class="sub" style="padding:8px 12px">Nada encontrado.</div>';
+  } else {
+    buscaRes.innerHTML = itens.map(i =>
+      `<button data-id="${i.id}">
+        <b>${esc(i.codigo_interno || i.codigo_patrimonial || "(sem código)")}</b> — ${esc(i.equipamento) || ""}
+        <div class="sub">${[i.marca, i.modelo, i.serial].filter(Boolean).map(esc).join(" · ")}</div>
+      </button>`).join("");
+  }
+  buscaRes.style.display = "block";
+}
+
+buscaInst.oninput = () => {
+  clearTimeout(timer);
+  const q = buscaInst.value.trim();
+  if (!q) { buscaRes.style.display = "none"; return; }
+  timer = setTimeout(() => buscar(q), 200);
+};
+
+buscaRes.addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-id]");
+  if (!btn) return;
+  buscaRes.style.display = "none";
+  await selecionar(btn.dataset.id);
+});
+
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("#buscaInst, #buscaRes")) buscaRes.style.display = "none";
+});
+
+async function selecionar(id) {
+  const i = await SDK.get("/instrumentos/" + id);
+  buscaInst.value = "";
+  selecionado.innerHTML = `<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <h1 style="margin:0;font-size:17px">${esc(i.codigo_interno || i.codigo_patrimonial || "")} — ${esc(i.equipamento) || ""}</h1>
+        <a class="btn ghost" href="ficha.html?id=${i.id}">Ficha completa</a>
+      </div>
+      <div style="margin-top:10px"><span class="muted">Ciclo: ${i.ciclo_meses ?? 12} meses · Validade atual: ${fmtData(i.data_validade)}</span></div>
+      <div id="secaoCalib" data-inst="${i.id}" style="margin-top:14px"></div>
+    </div>`;
+  // reuso das funções compartilhadas (app.js): histórico + form + upload
+  montarSecaoCalibracoes(i.id, () => selecionar(id));
+}
+</script>
+</body></html>
