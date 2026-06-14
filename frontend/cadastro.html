@@ -1,0 +1,144 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SisCalib · Cadastro</title>
+<link rel="stylesheet" href="vendor/fonts.css">
+<link rel="stylesheet" href="vendor/bootstrap-icons.min.css">
+<link rel="stylesheet" href="vendor/xcmasm-govbr.css">
+<link rel="stylesheet" href="siscalib.css">
+<style>
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fld{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.fld label{font-size:12px;color:var(--tx2)}
+fieldset{border:1px solid var(--bd);border-radius:var(--rl);padding:14px 16px;margin-bottom:14px}
+legend{padding:0 6px;font-weight:600;color:var(--tx2);font-size:12px;text-transform:uppercase}
+.req label::after{content:" *";color:var(--red)}
+.igp-box{font-size:15px;font-weight:600;margin-top:8px}
+</style>
+</head><body class="app">
+<script src="app.js"></script>
+<main class="main">
+  <a href="inventario.html" class="muted">&larr; Inventário</a>
+  <h1 id="titulo" style="margin-top:8px">Novo Instrumento</h1>
+  <form id="form">
+    <fieldset><legend>Identificação</legend>
+      <div class="grid2">
+        <div class="fld req"><label>Equipamento</label><input name="equipamento" required></div>
+        <div class="fld"><label>Código patrimonial</label><input name="codigo_patrimonial"></div>
+        <div class="fld"><label>Código interno</label><input name="codigo_interno"></div>
+        <div class="fld"><label>Número de série</label><input name="serial"></div>
+        <div class="fld"><label>Marca</label><input name="marca"></div>
+        <div class="fld"><label>Modelo</label><input name="modelo"></div>
+      </div>
+    </fieldset>
+    <fieldset><legend>Classificação</legend>
+      <div class="grid2">
+        <div class="fld req"><label>Família metrológica</label><select name="familia_id" required></select></div>
+        <div class="fld req"><label>Tipo</label><select name="tipo_id" required></select></div>
+        <div class="fld"><label>Grandeza principal</label><select name="grandeza_id"><option value="">—</option></select></div>
+        <div class="fld"><label>Unidade SI</label><select name="unidade_id"><option value="">—</option></select></div>
+        <div class="fld"><label>Disciplina</label><select name="disciplina"><option value="">—</option><option>ELE</option><option>MEC</option></select></div>
+      </div>
+    </fieldset>
+    <fieldset><legend>Especificação técnica</legend>
+      <div class="grid2">
+        <div class="fld"><label>Faixa mínima</label><input name="faixa_min" type="number" step="any"></div>
+        <div class="fld"><label>Faixa máxima</label><input name="faixa_max" type="number" step="any"></div>
+        <div class="fld"><label>Resolução</label><input name="resolucao" placeholder="0,01 mm"></div>
+        <div class="fld"><label>EMP / exatidão</label><input name="emp" placeholder="±(0,5% + 2d)"></div>
+        <div class="fld req"><label>Periodicidade (meses)</label><input name="ciclo_meses" type="number" value="12" required></div>
+      </div>
+    </fieldset>
+    <fieldset><legend>Localização e estado</legend>
+      <div class="grid2">
+        <div class="fld"><label>Organização</label><input name="organizacao"></div>
+        <div class="fld"><label>Unidade</label><input name="unidade_org"></div>
+        <div class="fld"><label>Seção</label><input name="secao"></div>
+        <div class="fld"><label>Bancada</label><input name="bancada"></div>
+        <div class="fld"><label>Sistema</label><input name="sistema"></div>
+        <div class="fld req"><label>Status operacional</label><select name="status_operacional" required>
+          <option>ATIVO</option><option>EM_CALIBRACAO</option><option>EM_MANUTENCAO</option>
+          <option>REPROVADO</option><option>BLOQUEADO</option><option>BAIXADO</option></select></div>
+      </div>
+    </fieldset>
+    <fieldset><legend>Criticidade (IGP)</legend>
+      <div class="grid2">
+        <div class="fld"><label>Frequência de uso (FU)</label><select name="fu" class="igp"><option value="">—</option><option value="1">1 — esporádico</option><option value="2">2 — regular</option><option value="3">3 — diário</option></select></div>
+        <div class="fld"><label>Necessidade crítica (NC)</label><select name="nc" class="igp"><option value="">—</option><option value="1">1 — baixo impacto</option><option value="2">2 — importante</option><option value="3">3 — crítico</option></select></div>
+        <div class="fld"><label>Abundância/redundância (AB)</label><select name="ab" class="igp"><option value="">—</option><option value="1">1 — alta redundância</option><option value="2">2 — média</option><option value="3">3 — única</option></select></div>
+        <div class="fld"><label>Criticidade metrológica (CM)</label><select name="cm" class="igp"><option value="">—</option><option value="1">1 — tolerância alta</option><option value="2">2 — moderada</option><option value="3">3 — baixa tolerância</option></select></div>
+        <div class="fld"><label>Custo de indisponibilidade (CI)</label><select name="ci" class="igp"><option value="">—</option><option value="1">1 — mínimo</option><option value="2">2 — moderado</option><option value="3">3 — afeta operação</option></select></div>
+      </div>
+      <div class="igp-box" id="igpBox">IGP: — · <span class="muted">preencha as 5 variáveis</span></div>
+    </fieldset>
+    <div class="fld"><label>Observações</label><textarea name="observacoes" rows="2"></textarea></div>
+    <button class="btn" type="submit">Salvar</button>
+    <a class="btn ghost" href="inventario.html">Cancelar</a>
+    <span id="erro" class="sev-erro" style="margin-left:10px"></span>
+  </form>
+</main>
+<script>
+montarShell("");
+const form = document.getElementById("form");
+const params = new URLSearchParams(location.search);
+const editId = params.get("id");
+
+function setSelect(sel, itens, valueKey, labelFn, keep) {
+  const atual = keep ? sel.value : "";
+  const head = sel.querySelector('option[value=""]') ? '<option value="">—</option>' : "";
+  sel.innerHTML = head + itens.map(i => `<option value="${i[valueKey]}">${esc(labelFn(i))}</option>`).join("");
+  if (atual) sel.value = atual;
+}
+
+async function carregarDominios(familiaId) {
+  const d = await SDK.get("/dominios", familiaId ? { familia_id: familiaId } : null);
+  if (!familiaId) setSelect(form.familia_id, d.familias, "id", i => i.nome);
+  setSelect(form.tipo_id, d.tipos, "id", i => i.nome);
+  setSelect(form.grandeza_id, d.grandezas, "id", i => i.nome);
+  setSelect(form.unidade_id, d.unidades, "id", i => `${i.nome} (${i.simbolo || ""})`);
+  return d;
+}
+
+function atualizarIgp() {
+  const g = n => { const v = form[n].value; return v ? parseInt(v) : null; };
+  const r = calcIgpClient(g("fu"), g("nc"), g("ab"), g("cm"), g("ci"));
+  document.getElementById("igpBox").innerHTML = r.igp == null
+    ? 'IGP: — · <span class="muted">preencha as 5 variáveis</span>'
+    : `IGP: <b>${r.igp}</b> · ${CLASSE_LABEL[r.classe]}`;
+}
+
+(async () => {
+  await carregarDominios(null);
+  form.familia_id.onchange = () => carregarDominios(form.familia_id.value);
+  form.querySelectorAll(".igp").forEach(s => s.onchange = atualizarIgp);
+
+  if (editId) {
+    document.getElementById("titulo").textContent = "Editar Instrumento";
+    const i = await SDK.get("/instrumentos/" + editId);
+    if (i.familia_id) { form.familia_id.value = i.familia_id; await carregarDominios(i.familia_id); }
+    for (const [k, v] of Object.entries(i)) {
+      if (form[k] && v !== null && v !== undefined) form[k].value = v;
+    }
+    form.status_operacional.value = i.status_operacional || "ATIVO";
+    atualizarIgp();
+  }
+})();
+
+form.onsubmit = async (e) => {
+  e.preventDefault();
+  document.getElementById("erro").textContent = "";
+  const fd = new FormData(form);
+  const body = {};
+  for (const [k, v] of fd.entries()) {
+    if (v === "") continue;
+    body[k] = ["familia_id","tipo_id","grandeza_id","unidade_id","ciclo_meses","fu","nc","ab","cm","ci"].includes(k)
+      ? parseInt(v) : (["faixa_min","faixa_max"].includes(k) ? parseFloat(v) : v);
+  }
+  try {
+    const saved = editId ? await SDK.put("/instrumentos/" + editId, body)
+                         : await SDK.post("/instrumentos", body);
+    location.href = "ficha.html?id=" + saved.id;
+  } catch (err) {
+    document.getElementById("erro").textContent = err.message;
+  }
+};
+</script></body></html>
