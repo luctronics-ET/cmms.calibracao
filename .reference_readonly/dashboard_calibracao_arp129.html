@@ -1,0 +1,251 @@
+
+<h2 class="sr-only">Dashboard de calibração ARP 129/2025 — sumário de custos por divisão e por tipo de equipamento</h2>
+
+<style>
+  .dash { font-family: var(--font-sans); padding: 1rem 0; }
+  .section-label { font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-secondary); margin: 0 0 10px; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 1.5rem; }
+  .kpi { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 14px 16px; }
+  .kpi-label { font-size: 12px; color: var(--color-text-secondary); margin: 0 0 4px; }
+  .kpi-val { font-size: 22px; font-weight: 500; color: var(--color-text-primary); margin: 0; }
+  .kpi-sub { font-size: 11px; color: var(--color-text-tertiary); margin: 4px 0 0; }
+  .charts-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 16px; margin-bottom: 1.5rem; }
+  .chart-card { border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 16px; }
+  .chart-title { font-size: 13px; font-weight: 500; color: var(--color-text-primary); margin: 0 0 12px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; font-size: 11px; color: var(--color-text-secondary); }
+  .leg-dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+  .chart-wrap { position: relative; width: 100%; }
+  .table-card { border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 16px; }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .data-table th { color: var(--color-text-secondary); font-weight: 500; text-align: left; padding: 6px 8px; border-bottom: 0.5px solid var(--color-border-tertiary); white-space: nowrap; }
+  .data-table td { padding: 6px 8px; color: var(--color-text-primary); border-bottom: 0.5px solid var(--color-border-tertiary); }
+  .data-table tr:last-child td { border-bottom: none; font-weight: 500; }
+  .data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .bar-label { font-size: 11px; color: var(--color-text-secondary); width: 80px; text-align: right; flex-shrink: 0; }
+  .bar-track { flex: 1; background: var(--color-border-tertiary); border-radius: 3px; height: 8px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 3px; }
+  .bar-val { font-size: 11px; color: var(--color-text-secondary); width: 60px; font-variant-numeric: tabular-nums; }
+</style>
+
+<div class="dash">
+
+  <p class="section-label">ARP 129/2025 — MQT Serviços Metrológicos — Calibração Lote 2</p>
+
+  <div class="kpi-grid">
+    <div class="kpi">
+      <p class="kpi-label">Total instrumentos</p>
+      <p class="kpi-val">76</p>
+      <p class="kpi-sub">8 divisões</p>
+    </div>
+    <div class="kpi">
+      <p class="kpi-label">Custo total</p>
+      <p class="kpi-val">R$ 9.282</p>
+      <p class="kpi-sub">ARP 129/2025</p>
+    </div>
+    <div class="kpi">
+      <p class="kpi-label">Custo médio/instrumento</p>
+      <p class="kpi-val">R$ 122</p>
+      <p class="kpi-sub">R$ 45 – R$ 475</p>
+    </div>
+    <div class="kpi">
+      <p class="kpi-label">Maior parcela</p>
+      <p class="kpi-val">F-21</p>
+      <p class="kpi-sub">R$ 3.932 — 42%</p>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card">
+      <p class="chart-title">Custo por divisão (R$)</p>
+      <div class="legend" id="leg-div"></div>
+      <div class="chart-wrap" style="height:220px"><canvas id="chartDiv" role="img" aria-label="Gráfico de barras horizontais com custo por divisão"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <p class="chart-title">Distribuição por divisão (%)</p>
+      <div class="legend" id="leg-pie"></div>
+      <div class="chart-wrap" style="height:220px"><canvas id="chartPie" role="img" aria-label="Gráfico de rosca com distribuição percentual por divisão"></canvas></div>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card">
+      <p class="chart-title">Custo por tipo de equipamento (R$)</p>
+      <div class="legend" id="leg-eq"></div>
+      <div class="chart-wrap" style="height:260px"><canvas id="chartEq" role="img" aria-label="Gráfico de barras com custo total por tipo de equipamento"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <p class="chart-title">Qtd vs custo por equipamento</p>
+      <div id="bar-chart-custom"></div>
+    </div>
+  </div>
+
+  <div class="table-card">
+    <p class="chart-title">Resumo por divisão</p>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Divisão</th>
+          <th class="num">Instrumentos</th>
+          <th class="num">Custo total</th>
+          <th class="num">Custo médio</th>
+          <th class="num">% do total</th>
+        </tr>
+      </thead>
+      <tbody id="table-div"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const divData = [
+  { div: 'F-21',          qtd: 28, custo: 3932 },
+  { div: 'MK-48',         qtd: 17, custo: 1420 },
+  { div: 'EXOCET',        qtd: 15, custo: 1980 },
+  { div: 'MK-46',         qtd:  9, custo: 1260 },
+  { div: 'PENGUIN',       qtd:  4, custo:  280 },
+  { div: 'MISTRAL',       qtd:  3, custo:  210 },
+  { div: 'MINAS E BOMBAS',qtd:  2, custo:  130 },
+  { div: 'SEASKUA',       qtd:  1, custo:   70 },
+];
+const eqData = [
+  { eq: 'Torquímetro',        qtd: 45, custo: 3150 },
+  { eq: 'Fonte DC',           qtd:  5, custo:  900 },
+  { eq: 'Contador',           qtd:  2, custo:  900 },
+  { eq: 'Osciloscópio',       qtd:  1, custo:  475 },
+  { eq: 'Ohmímetro',          qtd:  2, custo:  912 },
+  { eq: 'Manômetro',          qtd:  8, custo:  520 },
+  { eq: 'Multímetro',         qtd:  5, custo:  825 },
+  { eq: 'Megôhmetro',         qtd:  2, custo:  520 },
+  { eq: 'Gerador funções',    qtd:  1, custo:  410 },
+  { eq: 'Micrômetro prof.',   qtd:  2, custo:  170 },
+  { eq: 'Dinamômetro',        qtd:  1, custo:  240 },
+  { eq: 'Paquímetro',         qtd:  2, custo:   90 },
+];
+const total = 9282;
+
+const COLORS_DIV = ['#378ADD','#1D9E75','#D85A30','#BA7517','#7F77DD','#D4537E','#639922','#E24B4A'];
+const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+const textCol = isDark ? '#ccc' : '#555';
+const gridCol = isDark ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.07)';
+
+const baseOpts = {
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { display: false }, tooltip: { callbacks: {
+    label: ctx => ' R$ ' + ctx.parsed.x?.toLocaleString('pt-BR') || ' R$ ' + ctx.parsed.y?.toLocaleString('pt-BR')
+  }}},
+};
+
+// Chart 1 — barras horizontais divisão
+const divSorted = [...divData].sort((a,b) => a.custo - b.custo);
+new Chart(document.getElementById('chartDiv'), {
+  type: 'bar',
+  data: {
+    labels: divSorted.map(d => d.div),
+    datasets: [{ data: divSorted.map(d => d.custo),
+      backgroundColor: COLORS_DIV.slice().reverse(),
+      borderWidth: 0, borderRadius: 3 }]
+  },
+  options: { ...baseOpts, indexAxis: 'y',
+    plugins: { ...baseOpts.plugins,
+      tooltip: { callbacks: { label: ctx => ' R$ ' + ctx.parsed.x.toLocaleString('pt-BR') }}
+    },
+    scales: {
+      x: { grid: { color: gridCol }, ticks: { color: textCol, font: { size: 10 },
+        callback: v => 'R$ ' + v.toLocaleString('pt-BR') }},
+      y: { grid: { display: false }, ticks: { color: textCol, font: { size: 10 }}}
+    }}
+});
+
+// legenda div
+const legDiv = document.getElementById('leg-div');
+divData.forEach((d,i) => {
+  legDiv.innerHTML += `<span style="display:flex;align-items:center;gap:4px"><span class="leg-dot" style="background:${COLORS_DIV[i]}"></span>${d.div}</span>`;
+});
+
+// Chart 2 — donut
+const pct = divData.map(d => +((d.custo/total)*100).toFixed(1));
+new Chart(document.getElementById('chartPie'), {
+  type: 'doughnut',
+  data: { labels: divData.map(d => d.div), datasets: [{ data: pct,
+    backgroundColor: COLORS_DIV, borderWidth: 1,
+    borderColor: isDark ? '#222' : '#fff' }]},
+  options: { ...baseOpts, cutout: '58%',
+    plugins: { legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}%` }}}}
+});
+const legPie = document.getElementById('leg-pie');
+divData.forEach((d,i) => {
+  legPie.innerHTML += `<span style="display:flex;align-items:center;gap:4px"><span class="leg-dot" style="background:${COLORS_DIV[i]}"></span>${d.div} ${pct[i]}%</span>`;
+});
+
+// Chart 3 — barras verticais equipamento
+const COLORS_EQ = ['#378ADD','#1D9E75','#D85A30','#7F77DD','#BA7517','#D4537E','#639922','#E24B4A','#5DCAA5','#EF9F27','#AFA9EC','#F0997B'];
+new Chart(document.getElementById('chartEq'), {
+  type: 'bar',
+  data: {
+    labels: eqData.map(d => d.eq),
+    datasets: [{ data: eqData.map(d => d.custo),
+      backgroundColor: COLORS_EQ, borderWidth: 0, borderRadius: 3 }]
+  },
+  options: { ...baseOpts,
+    plugins: { legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ' R$ ' + ctx.parsed.y.toLocaleString('pt-BR') + ' — ' + eqData[ctx.dataIndex].qtd + ' un.' }}},
+    scales: {
+      x: { grid: { display: false }, ticks: { color: textCol, font: { size: 9 }, maxRotation: 45, autoSkip: false }},
+      y: { grid: { color: gridCol }, ticks: { color: textCol, font: { size: 10 },
+        callback: v => 'R$ ' + v.toLocaleString('pt-BR') }}
+    }}
+});
+const legEq = document.getElementById('leg-eq');
+eqData.forEach((d,i) => {
+  legEq.innerHTML += `<span style="display:flex;align-items:center;gap:4px"><span class="leg-dot" style="background:${COLORS_EQ[i]}"></span>${d.eq}</span>`;
+});
+
+// Barras custom qtd vs custo
+const maxCusto = Math.max(...eqData.map(d => d.custo));
+const maxQtd   = Math.max(...eqData.map(d => d.qtd));
+const container = document.getElementById('bar-chart-custom');
+const sortedEq = [...eqData].sort((a,b) => b.custo - a.custo);
+container.innerHTML = sortedEq.map((d,i) => `
+  <div class="bar-row">
+    <span class="bar-label">${d.eq}</span>
+    <div style="flex:1; display:flex; flex-direction:column; gap:3px">
+      <div class="bar-track"><div class="bar-fill" style="width:${(d.custo/maxCusto*100).toFixed(1)}%;background:#378ADD"></div></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(d.qtd/maxQtd*100).toFixed(1)}%;background:#1D9E75"></div></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:3px;width:64px">
+      <span class="bar-val" style="color:#378ADD">R$ ${d.custo.toLocaleString('pt-BR')}</span>
+      <span class="bar-val" style="color:#1D9E75">${d.qtd} un.</span>
+    </div>
+  </div>`).join('');
+container.insertAdjacentHTML('afterbegin',
+  `<div style="display:flex;gap:16px;margin-bottom:10px;font-size:11px">
+    <span style="display:flex;align-items:center;gap:4px"><span class="leg-dot" style="background:#378ADD"></span>Custo total</span>
+    <span style="display:flex;align-items:center;gap:4px"><span class="leg-dot" style="background:#1D9E75"></span>Quantidade</span>
+  </div>`);
+
+// Tabela resumo divisão
+const tbody = document.getElementById('table-div');
+const sorted = [...divData].sort((a,b) => b.custo - a.custo);
+sorted.forEach(d => {
+  const media = Math.round(d.custo / d.qtd);
+  const pct = ((d.custo/total)*100).toFixed(1);
+  tbody.innerHTML += `<tr>
+    <td>${d.div}</td>
+    <td class="num">${d.qtd}</td>
+    <td class="num">R$ ${d.custo.toLocaleString('pt-BR')}</td>
+    <td class="num">R$ ${media.toLocaleString('pt-BR')}</td>
+    <td class="num">${pct}%</td>
+  </tr>`;
+});
+tbody.innerHTML += `<tr>
+  <td>Total</td>
+  <td class="num">76</td>
+  <td class="num">R$ 9.282</td>
+  <td class="num">R$ 122</td>
+  <td class="num">100%</td>
+</tr>`;
+</script>
