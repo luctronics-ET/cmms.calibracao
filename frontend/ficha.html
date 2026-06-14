@@ -17,11 +17,15 @@
 montarShell("");
 (async () => {
   const id = new URLSearchParams(location.search).get("id");
-  const i = await SDK.get("/instrumentos/" + id);
   document.getElementById("btnEditar").href = "cadastro.html?id=" + id;
-  document.getElementById("titulo").textContent =
-    `${i.codigo_interno || i.codigo_patrimonial || "(sem código)"} — ${i.equipamento || ""}`;
-  document.getElementById("corpo").innerHTML = renderFichaResumo(i);
+  async function pintar() {
+    const i = await SDK.get("/instrumentos/" + id);
+    document.getElementById("titulo").textContent =
+      `${i.codigo_interno || i.codigo_patrimonial || "(sem código)"} — ${i.equipamento || ""}`;
+    document.getElementById("corpo").innerHTML = renderFichaResumo(i);
+    montarSecaoCalibracoes(i.id, pintar);
+  }
+  await pintar();
 })();
 </script>
 </body></html>

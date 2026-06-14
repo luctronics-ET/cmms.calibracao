@@ -81,3 +81,9 @@ tbody tr{cursor:pointer}
 .filtro-itens{display:flex;flex-direction:column;gap:4px}
 .filtro-itens label{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;
   text-transform:none;letter-spacing:0;color:var(--tx)}
+.calib-form .fld,.fld{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.calib-form .fld label,.fld label{font-size:12px;color:var(--tx2)}
+.calib-form .fld.req label::after,.fld.req label::after{content:" *";color:var(--red)}
+.grid2-calib{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.calib-form textarea,.fld textarea{background:var(--sf2);border:1px solid var(--bd);color:var(--tx);
+  padding:8px 10px;border-radius:var(--r);font-size:13px;font-family:inherit}

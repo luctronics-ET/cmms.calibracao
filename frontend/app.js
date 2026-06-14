@@ -121,6 +121,13 @@ function abrirModal(titulo, conteudoHtml, acoesHtml) {
   return ov;
 }
 
+// ── DELETE ──────────────────────────────────────────────────────────────────
+SDK.del = async (path) => {
+  const r = await fetch(API + path, { method: "DELETE" });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
+};
+
 // ── PATCH parcial ───────────────────────────────────────────────────────────
 SDK.patch = async (path, body) => {
   const r = await fetch(API + path, {
@@ -180,5 +187,137 @@ function renderFichaResumo(i) {
     (i.manual_path ? ` · <a href="${i.manual_path}" target="_blank">Manual (PDF)</a>` : ' · <span class="muted">Sem manual</span>');
   return `<div style="margin-bottom:12px">${status}</div>
     <div class="twrap"><table><tbody>${tabela}</tbody></table></div>
-    <div style="margin-top:12px"><b>Anexos</b><div style="margin-top:6px">${anexos}</div></div>`;
+    <div style="margin-top:12px"><b>Anexos</b><div style="margin-top:6px">${anexos}</div></div>
+    <div style="margin-top:16px"><b>Calibrações</b>
+      <span class="muted" style="margin-left:8px">Ciclo: ${i.ciclo_meses ?? 12} meses</span>
+      <div id="secaoCalib" data-inst="${i.id}" style="margin-top:8px"></div></div>`;
+}
+
+// ── Calibrações (histórico + form + upload) ─────────────────────────────────
+const RESULTADO_BADGE = {
+  APROVADO: "green", APROVADO_COM_RESTRICOES: "amber", REPROVADO: "red",
+};
+const RESULTADO_LABEL = {
+  APROVADO: "Aprovado", APROVADO_COM_RESTRICOES: "Aprovado c/ restrições",
+  REPROVADO: "Reprovado",
+};
+
+async function renderHistoricoCalibracoes(instId, container) {
+  container.innerHTML = '<span class="muted">Carregando…</span>';
+  let dados;
+  try {
+    dados = await SDK.get(`/instrumentos/${instId}/calibracoes`);
+  } catch (err) {
+    container.innerHTML = `<span class="sev-erro">Falha ao carregar histórico: ${esc(err.message)}</span>`;
+    return;
+  }
+  if (!dados.itens.length) {
+    container.innerHTML = '<p class="muted">Nenhuma calibração registrada.</p>';
+    return;
+  }
+  const linhas = dados.itens.map(c => {
+    const res = `<span class="bdg ${RESULTADO_BADGE[c.resultado] || "slate"}">${RESULTADO_LABEL[c.resultado] || esc(c.resultado)}</span>`;
+    const cert = c.certificado_path
+      ? `<a href="/${esc(c.certificado_path)}" target="_blank" title="Abrir certificado">📎</a>`
+      : "—";
+    return `<tr>
+      <td>${fmtData(c.data_calibracao)}</td>
+      <td>${fmtData(c.data_validade)}</td>
+      <td>${res}</td>
+      <td>${esc(c.laboratorio) || "—"}</td>
+      <td>${cert}</td>
+      <td><button class="btn ghost calib-del" data-cal="${c.id}" style="padding:2px 8px">Excluir</button></td>
+    </tr>`;
+  }).join("");
+  container.innerHTML = `<div class="twrap"><table>
+    <thead><tr><th>Data</th><th>Validade</th><th>Resultado</th><th>Laboratório</th><th>Cert.</th><th>Ação</th></tr></thead>
+    <tbody>${linhas}</tbody></table></div>`;
+  container.querySelectorAll(".calib-del").forEach(b => b.onclick = async () => {
+    if (!confirm("Excluir esta calibração?")) return;
+    b.disabled = true;
+    try {
+      await SDK.del(`/instrumentos/${instId}/calibracoes/${b.dataset.cal}`);
+      await renderHistoricoCalibracoes(instId, container);
+      if (typeof window._onCalibChanged === "function") await window._onCalibChanged(instId);
+    } catch (err) {
+      alert("Falha ao excluir: " + err.message);
+      b.disabled = false;
+    }
+  });
+}
+
+function renderFormCalibracao(instId, onSaved) {
+  const form = document.createElement("form");
+  form.className = "calib-form";
+  form.innerHTML = `
+    <div class="grid2-calib">
+      <div class="fld req"><label>Data da calibração</label><input name="data_calibracao" type="date" required></div>
+      <div class="fld"><label>Resultado</label><select name="resultado">
+        <option value="APROVADO">Aprovado</option>
+        <option value="APROVADO_COM_RESTRICOES">Aprovado c/ restrições</option>
+        <option value="REPROVADO">Reprovado</option></select></div>
+      <div class="fld"><label>Laboratório</label><input name="laboratorio"></div>
+      <div class="fld"><label>Nº certificado</label><input name="numero_certificado"></div>
+      <div class="fld"><label>Custo</label><input name="custo" type="number" step="any"></div>
+      <div class="fld"><label>Responsável</label><input name="responsavel"></div>
+    </div>
+    <div class="fld"><label>Observações</label><textarea name="observacoes" rows="2"></textarea></div>
+    <div class="fld"><label>Certificado (PDF, opcional)</label><input name="arquivo" type="file" accept=".pdf"></div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+      <button class="btn" type="submit">Salvar calibração</button>
+      <span class="sev-erro calib-erro"></span>
+    </div>`;
+  const erro = form.querySelector(".calib-erro");
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    erro.textContent = "";
+    const fd = new FormData(form);
+    const body = {};
+    for (const [k, v] of fd.entries()) {
+      if (k === "arquivo" || v === "") continue;
+      body[k] = k === "custo" ? parseFloat(v) : v;
+    }
+    const btn = form.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    try {
+      const res = await SDK.post(`/instrumentos/${instId}/calibracoes`, body);
+      const arquivo = form.arquivo.files[0];
+      if (arquivo) {
+        await SDK.upload(`/instrumentos/${instId}/calibracoes/${res.calibracao.id}/certificado`, arquivo);
+      }
+      form.reset();
+      if (typeof onSaved === "function") await onSaved();
+    } catch (err) {
+      erro.textContent = "Falha ao salvar: " + err.message;
+    } finally {
+      btn.disabled = false;
+    }
+  };
+  return form;
+}
+
+// Monta a seção de calibrações dentro do nó #secaoCalib (após o modal/ficha no DOM).
+// onChanged(instId) é chamado após registrar/excluir, para o caller atualizar a lista.
+function montarSecaoCalibracoes(instId, onChanged) {
+  const sec = document.getElementById("secaoCalib");
+  if (!sec) return;
+  window._onCalibChanged = onChanged;
+  const hist = document.createElement("div");
+  const slotForm = document.createElement("div");
+  slotForm.style.marginTop = "10px";
+  const btn = document.createElement("button");
+  btn.className = "btn ghost";
+  btn.style.marginTop = "10px";
+  btn.innerHTML = '<i class="bi bi-plus-lg"></i> Registrar calibração';
+  btn.onclick = () => {
+    if (slotForm.firstChild) { slotForm.innerHTML = ""; return; }
+    const form = renderFormCalibracao(instId, async () => {
+      slotForm.innerHTML = "";
+      await renderHistoricoCalibracoes(instId, hist);
+      if (typeof onChanged === "function") await onChanged(instId);
+    });
+    slotForm.appendChild(form);
+  };
+  sec.append(hist, btn, slotForm);
+  renderHistoricoCalibracoes(instId, hist);
 }
