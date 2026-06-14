@@ -108,7 +108,44 @@ def _gerar_xlsx(linhas: list[dict]) -> bytes:
 
 
 def _gerar_pdf(instrumentos: list[InstrumentoOut]) -> bytes:
-    raise NotImplementedError
+    from fpdf import FPDF
+    hoje = date.today()
+    pdf = FPDF(orientation="L", unit="mm", format="A4")
+    pdf.set_auto_page_break(auto=True, margin=12)
+    pdf.add_page()
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.cell(0, 8, "CMASM / DME - Inventario de Calibracao", ln=True)
+    pdf.set_font("Helvetica", "", 9)
+    pdf.cell(0, 6, f"Gerado em {hoje.isoformat()} - {len(instrumentos)} item(ns)", ln=True)
+    pdf.ln(2)
+
+    # cabeçalhos e larguras (mm) do resumo
+    cols = [
+        ("Codigo", 45), ("Equipamento", 75), ("Sistema", 45),
+        ("Validade", 30), ("Status", 40), ("IGP/Classe", 42),
+    ]
+    pdf.set_font("Helvetica", "B", 9)
+    for titulo, larg in cols:
+        pdf.cell(larg, 7, titulo, border=1)
+    pdf.ln()
+    pdf.set_font("Helvetica", "", 8)
+    for o in instrumentos:
+        validade = o.data_validade.isoformat() if o.data_validade else "-"
+        igp = f"{o.igp} / {o.classe_prioridade}" if o.igp is not None else o.classe_prioridade
+        valores = [
+            o.codigo_interno or o.codigo_patrimonial or "-",
+            o.equipamento or "-", o.sistema or "-",
+            validade, o.status, igp,
+        ]
+        for (titulo, larg), valor in zip(cols, valores):
+            texto = str(valor)
+            # trunca para caber na célula (resumo)
+            while pdf.get_string_width(texto) > larg - 2 and len(texto) > 1:
+                texto = texto[:-1]
+            pdf.cell(larg, 6, texto, border=1)
+        pdf.ln()
+    saida = pdf.output()
+    return bytes(saida)
 
 
 @router.post("/instrumentos/export")

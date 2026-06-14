@@ -339,3 +339,12 @@ def test_export_xlsx(client):
     ws = wb.active
     assert ws.cell(row=1, column=1).value == "Código interno"   # cabeçalho
     assert ws.max_row == len(ids) + 1                            # itens + cabeçalho
+
+
+def test_export_pdf(client):
+    itens = client.get("/api/v1/instrumentos").json()["itens"]
+    ids = [i["id"] for i in itens]
+    r = client.post("/api/v1/instrumentos/export", json={"ids": ids, "formato": "pdf"})
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("application/pdf")
+    assert r.content[:4] == b"%PDF"
