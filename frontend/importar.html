@@ -1,0 +1,48 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SisCalib · Importar</title>
+<link rel="stylesheet" href="vendor/fonts.css">
+<link rel="stylesheet" href="vendor/bootstrap-icons.min.css">
+<link rel="stylesheet" href="vendor/xcmasm-govbr.css">
+<link rel="stylesheet" href="siscalib.css">
+</head><body class="app">
+<script src="app.js"></script>
+<main class="main">
+  <h1>Importar Inventário (CSV)</h1>
+  <div class="card">
+    <input type="file" id="arq" accept=".csv">
+    <button class="btn" id="btnPreview">Pré-visualizar</button>
+    <button class="btn" id="btnCommit" style="display:none">Confirmar importação</button>
+    <div id="totais" style="margin-top:12px"></div>
+  </div>
+  <div class="twrap" id="wrap" style="display:none"><table id="tab"><thead><tr>
+    <th>#</th><th>Código</th><th>Equipamento</th><th>Validade</th><th>Problemas</th>
+  </tr></thead><tbody></tbody></table></div>
+</main>
+<script>
+montarShell("importar.html");
+const arq = document.getElementById("arq"), totais = document.getElementById("totais"),
+      wrap = document.getElementById("wrap"), btnCommit = document.getElementById("btnCommit");
+document.getElementById("btnPreview").onclick = async () => {
+  if (!arq.files[0]) return alert("Escolha um arquivo CSV.");
+  const r = await SDK.upload("/importacao/preview", arq.files[0]);
+  const t = r.totais;
+  totais.innerHTML = `<b>${t.total_linhas}</b> linhas ·
+    <span class="sev-info">${t.validas} válidas</span> ·
+    <span class="sev-aviso">${t.com_aviso} com aviso</span> ·
+    <span class="sev-erro">${t.com_erro} com erro</span>`;
+  wrap.style.display = "";
+  btnCommit.style.display = t.validas ? "" : "none";
+  document.querySelector("#tab tbody").innerHTML = r.linhas.map(l => {
+    const probs = l.problemas.map(p => `<div class="sev-${p.severidade}">[${p.severidade}] ${esc(p.campo)}: ${esc(p.mensagem)}</div>`).join("") || "—";
+    return `<tr><td>${l.numero}</td><td>${esc(l.dados.codigo_interno)}</td>
+      <td>${esc(l.dados.equipamento)}</td><td>${fmtData(l.dados.data_validade)}</td><td>${probs}</td></tr>`;
+  }).join("");
+};
+btnCommit.onclick = async () => {
+  if (!confirm("Confirmar gravação das linhas válidas?")) return;
+  const r = await SDK.upload("/importacao/commit", arq.files[0]);
+  alert(`Importado: ${r.inseridos} inseridos, ${r.ignorados} ignorados.`);
+  location.href = "index.html";
+};
+</script></body></html>
