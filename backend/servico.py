@@ -1,10 +1,11 @@
 """Aplica os motores de status e IGP sobre instrumentos do banco."""
 from __future__ import annotations
 from datetime import date
-from backend.calibracao import calcular_status
+from sqlalchemy.orm import Session
+from backend.calibracao import calcular_status, derivar_de_calibracoes
 from backend.criticidade import calcular_igp
-from backend.models import Instrumento
-from backend.schemas import InstrumentoOut
+from backend.models import Instrumento, Calibracao, StatusOperacional, Resultado
+from backend.schemas import InstrumentoOut, CalibracaoOut
 
 
 def instrumento_para_out(inst: Instrumento, hoje: date) -> InstrumentoOut:
@@ -58,3 +59,36 @@ def instrumento_para_out(inst: Instrumento, hoje: date) -> InstrumentoOut:
         igp=ig.igp,
         classe_prioridade=ig.classe.value,
     )
+
+
+def calibracao_para_out(cal: Calibracao) -> CalibracaoOut:
+    return CalibracaoOut(
+        id=cal.id,
+        instrumento_id=cal.instrumento_id,
+        data_calibracao=cal.data_calibracao,
+        data_validade=cal.data_validade,
+        ciclo_meses=cal.ciclo_meses,
+        resultado=cal.resultado.value,
+        laboratorio=cal.laboratorio,
+        laboratorio_cnpj=cal.laboratorio_cnpj,
+        acreditacao_rbc=cal.acreditacao_rbc,
+        numero_cgcre=cal.numero_cgcre,
+        numero_certificado=cal.numero_certificado,
+        custo=float(cal.custo) if cal.custo is not None else None,
+        responsavel=cal.responsavel,
+        certificado_path=cal.certificado_path,
+        origem=cal.origem,
+        observacoes=cal.observacoes,
+    )
+
+
+def aplicar_derivados(inst: Instrumento, db: Session) -> None:
+    """Recalcula data_ultima_calibracao/data_validade/status_operacional do instrumento
+    a partir das suas calibrações e dá commit."""
+    cals = db.query(Calibracao).filter(Calibracao.instrumento_id == inst.id).all()
+    d = derivar_de_calibracoes(cals)
+    if d.status_operacional is not None:
+        inst.data_ultima_calibracao = d.data_ultima_calibracao
+        inst.data_validade = d.data_validade
+        inst.status_operacional = StatusOperacional(d.status_operacional)
+    db.commit()
