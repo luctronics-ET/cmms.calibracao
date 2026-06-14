@@ -184,3 +184,39 @@ def test_filtro_classe_prioridade(client):
     r = client.get("/api/v1/instrumentos", params={"classe_prioridade": "MAXIMA"})
     assert r.json()["total"] >= 1
     assert all(i["classe_prioridade"] == "MAXIMA" for i in r.json()["itens"])
+
+
+def _criar_basico(client):
+    fam_id, tipo_id = _dom(client)
+    return client.post("/api/v1/instrumentos", json={
+        "equipamento": "UP", "familia_id": fam_id, "tipo_id": tipo_id}).json()["id"]
+
+
+def test_upload_foto_aceita_imagem(client):
+    iid = _criar_basico(client)
+    r = client.post(f"/api/v1/instrumentos/{iid}/foto",
+                    files={"arquivo": ("f.png", b"\x89PNG\r\n", "image/png")})
+    assert r.status_code == 200
+    assert r.json()["foto_path"] and r.json()["foto_path"].endswith(".png")
+
+
+def test_upload_foto_rejeita_nao_imagem(client):
+    iid = _criar_basico(client)
+    r = client.post(f"/api/v1/instrumentos/{iid}/foto",
+                    files={"arquivo": ("f.txt", b"abc", "text/plain")})
+    assert r.status_code == 415
+
+
+def test_upload_manual_aceita_pdf(client):
+    iid = _criar_basico(client)
+    r = client.post(f"/api/v1/instrumentos/{iid}/manual",
+                    files={"arquivo": ("m.pdf", b"%PDF-1.4", "application/pdf")})
+    assert r.status_code == 200
+    assert r.json()["manual_path"].endswith(".pdf")
+
+
+def test_upload_manual_rejeita_nao_pdf(client):
+    iid = _criar_basico(client)
+    r = client.post(f"/api/v1/instrumentos/{iid}/manual",
+                    files={"arquivo": ("m.png", b"\x89PNG", "image/png")})
+    assert r.status_code == 415

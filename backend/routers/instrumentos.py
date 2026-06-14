@@ -2,7 +2,8 @@
 from __future__ import annotations
 import unicodedata
 from datetime import date
-from fastapi import APIRouter, Depends, HTTPException, Query
+from pathlib import Path
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.orm import Session
 from backend.db import get_db
 from backend.models import Instrumento, Disciplina, StatusOperacional
@@ -93,6 +94,44 @@ def editar(inst_id: int, dados: InstrumentoIn, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Instrumento não encontrado")
     _checar_patrimonio(db, dados.codigo_patrimonial, ignorar_id=inst_id)
     _aplicar(inst, dados)
+    db.commit()
+    db.refresh(inst)
+    return instrumento_para_out(inst, date.today())
+
+
+UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "uploads"
+
+
+def _salvar(inst_id: int, sufixo: str, conteudo: bytes, ext: str) -> str:
+    destino_dir = UPLOAD_DIR / str(inst_id)
+    destino_dir.mkdir(parents=True, exist_ok=True)
+    nome = f"{sufixo}{ext}"
+    (destino_dir / nome).write_bytes(conteudo)
+    return f"uploads/{inst_id}/{nome}"
+
+
+@router.post("/instrumentos/{inst_id}/foto", response_model=InstrumentoOut)
+async def upload_foto(inst_id: int, arquivo: UploadFile = File(...), db: Session = Depends(get_db)):
+    inst = db.get(Instrumento, inst_id)
+    if not inst:
+        raise HTTPException(status_code=404, detail="Instrumento não encontrado")
+    if not (arquivo.content_type or "").startswith("image/"):
+        raise HTTPException(status_code=415, detail="Envie um arquivo de imagem")
+    ext = Path(arquivo.filename or "").suffix.lower() or ".img"
+    inst.foto_path = _salvar(inst_id, "foto", await arquivo.read(), ext)
+    db.commit()
+    db.refresh(inst)
+    return instrumento_para_out(inst, date.today())
+
+
+@router.post("/instrumentos/{inst_id}/manual", response_model=InstrumentoOut)
+async def upload_manual(inst_id: int, arquivo: UploadFile = File(...), db: Session = Depends(get_db)):
+    inst = db.get(Instrumento, inst_id)
+    if not inst:
+        raise HTTPException(status_code=404, detail="Instrumento não encontrado")
+    if (arquivo.content_type or "") != "application/pdf":
+        raise HTTPException(status_code=415, detail="Envie um PDF")
+    inst.manual_path = _salvar(inst_id, "manual", await arquivo.read(), ".pdf")
     db.commit()
     db.refresh(inst)
     return instrumento_para_out(inst, date.today())
