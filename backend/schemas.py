@@ -1,6 +1,7 @@
 """Modelos de entrada/saída da API."""
 from __future__ import annotations
 from datetime import date
+from typing import Literal
 from pydantic import BaseModel, Field
 
 
@@ -179,3 +180,9 @@ class DominiosOut(BaseModel):
     tipos: list[ItemDominio]
     grandezas: list[ItemDominio]
     unidades: list[ItemDominio]
+
+
+class ExportRequest(BaseModel):
+    """Pedido de exportação: ids na ordem desejada + formato do arquivo."""
+    ids: list[int]
+    formato: Literal["csv", "xlsx", "pdf"]
