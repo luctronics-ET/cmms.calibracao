@@ -38,3 +38,34 @@ def test_get_um(client):
 
 def test_get_inexistente_404(client):
     assert client.get("/api/v1/instrumentos/99999").status_code == 404
+
+
+from pathlib import Path
+
+FIXTURE = ("tests/fixtures/amostra_inventario.csv", )
+
+
+def _enviar(client, rota):
+    data = Path("tests/fixtures/amostra_inventario.csv").read_bytes()
+    return client.post(rota, files={"arquivo": ("inv.csv", data, "text/csv")})
+
+
+def test_preview_nao_grava(client):
+    r = _enviar(client, "/api/v1/importacao/preview")
+    assert r.status_code == 200
+    assert r.json()["totais"]["total_linhas"] == 5
+    # nada foi inserido além do seed (3)
+    assert client.get("/api/v1/instrumentos").json()["total"] == 3
+
+
+def test_commit_insere(client):
+    r = _enviar(client, "/api/v1/importacao/commit")
+    assert r.status_code == 200
+    assert r.json()["inseridos"] == 5
+    assert client.get("/api/v1/instrumentos").json()["total"] == 8
+
+
+def test_commit_aplica_status_baixado(client):
+    _enviar(client, "/api/v1/importacao/commit")
+    itens = {i["codigo_interno"]: i for i in client.get("/api/v1/instrumentos").json()["itens"]}
+    assert itens["CMASM-IDM-T48-269"]["status"] == "BAIXADO"
