@@ -348,3 +348,14 @@ def test_export_pdf(client):
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("application/pdf")
     assert r.content[:4] == b"%PDF"
+
+
+def test_export_pdf_caracteres_fora_do_latin1(client):
+    fam_id, tipo_id = _dom(client)
+    iid = client.post("/api/v1/instrumentos", json={
+        "equipamento": "MULTÍMETRO — faixa alta…", "familia_id": fam_id, "tipo_id": tipo_id,
+        "ciclo_meses": 12, "status_operacional": "ATIVO",
+    }).json()["id"]
+    r = client.post("/api/v1/instrumentos/export", json={"ids": [iid], "formato": "pdf"})
+    assert r.status_code == 200
+    assert r.content[:4] == b"%PDF"

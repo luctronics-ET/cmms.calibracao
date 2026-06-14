@@ -107,16 +107,24 @@ def _gerar_xlsx(linhas: list[dict]) -> bytes:
     return buf.getvalue()
 
 
+def _latin1(texto: str) -> str:
+    """Coage texto ao Latin-1 (fonte core Helvetica) substituindo caracteres fora da faixa."""
+    return texto.encode("latin-1", "replace").decode("latin-1")
+
+
 def _gerar_pdf(instrumentos: list[InstrumentoOut]) -> bytes:
     from fpdf import FPDF
+    from fpdf.enums import XPos, YPos
     hoje = date.today()
     pdf = FPDF(orientation="L", unit="mm", format="A4")
     pdf.set_auto_page_break(auto=True, margin=12)
     pdf.add_page()
     pdf.set_font("Helvetica", "B", 14)
-    pdf.cell(0, 8, "CMASM / DME - Inventario de Calibracao", ln=True)
+    pdf.cell(0, 8, "CMASM / DME - Inventario de Calibracao",
+             new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.set_font("Helvetica", "", 9)
-    pdf.cell(0, 6, f"Gerado em {hoje.isoformat()} - {len(instrumentos)} item(ns)", ln=True)
+    pdf.cell(0, 6, f"Gerado em {hoje.isoformat()} - {len(instrumentos)} item(ns)",
+             new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.ln(2)
 
     # cabeçalhos e larguras (mm) do resumo
@@ -138,7 +146,7 @@ def _gerar_pdf(instrumentos: list[InstrumentoOut]) -> bytes:
             validade, o.status, igp,
         ]
         for (titulo, larg), valor in zip(cols, valores):
-            texto = str(valor)
+            texto = _latin1(str(valor))
             # trunca para caber na célula (resumo)
             while pdf.get_string_width(texto) > larg - 2 and len(texto) > 1:
                 texto = texto[:-1]
