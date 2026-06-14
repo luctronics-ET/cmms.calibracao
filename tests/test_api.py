@@ -69,3 +69,26 @@ def test_commit_aplica_status_baixado(client):
     _enviar(client, "/api/v1/importacao/commit")
     itens = {i["codigo_interno"]: i for i in client.get("/api/v1/instrumentos").json()["itens"]}
     assert itens["CMASM-IDM-T48-269"]["status"] == "BAIXADO"
+
+
+def test_kpis(client):
+    k = client.get("/api/v1/dashboard/kpis").json()
+    assert k["total"] == 3
+    assert k["vencidos"] == 1      # A-1
+    assert k["sem_data"] == 1      # A-3
+    assert k["n_sistemas"] == 2    # MK-48, F-21
+    assert any(s["status"] == "VENCIDO" and s["total"] == 1 for s in k["por_status"])
+
+
+def test_alertas_ordenados_excluem_validos(client):
+    a = client.get("/api/v1/alertas").json()
+    cods = [i["codigo_interno"] for i in a]
+    assert "A-2" not in cods          # VALIDO não entra
+    assert cods[0] == "A-1"           # VENCIDO primeiro
+
+
+def test_alertas_csv(client):
+    r = client.get("/api/v1/alertas", params={"formato": "csv"})
+    assert r.status_code == 200
+    assert "text/csv" in r.headers["content-type"]
+    assert "A-1" in r.text
