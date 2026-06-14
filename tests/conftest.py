@@ -10,11 +10,14 @@ from backend.main import app
 
 
 @pytest.fixture()
-def client(tmp_path):
+def client(tmp_path, monkeypatch):
     engine = create_engine(f"sqlite:///{tmp_path/'t.db'}",
                            connect_args={"check_same_thread": False})
     TestingSession = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     Base.metadata.create_all(bind=engine)
+
+    import backend.routers.instrumentos as _instr_mod
+    monkeypatch.setattr(_instr_mod, "UPLOAD_DIR", tmp_path / "uploads")
 
     db = TestingSession()
     seed_dominios(db)
