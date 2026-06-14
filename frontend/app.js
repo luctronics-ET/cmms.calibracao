@@ -92,3 +92,74 @@ function calcIgpClient(fu, nc, ab, cm, ci) {
   else if (igp >= 11) classe = "BAIXA";
   return { igp, classe };
 }
+
+// ── Modal reutilizável ──────────────────────────────────────────────────────
+function _escFechar(e) { if (e.key === "Escape") fecharModal(); }
+
+function fecharModal() {
+  const ov = document.getElementById("modalOv");
+  if (ov) ov.remove();
+  document.removeEventListener("keydown", _escFechar);
+}
+
+function abrirModal(titulo, conteudoHtml, acoesHtml) {
+  fecharModal();
+  const ov = document.createElement("div");
+  ov.className = "modal-ov";
+  ov.id = "modalOv";
+  ov.innerHTML = `<div class="modal-card" role="dialog" aria-modal="true">
+      <div class="modal-head"><b>${esc(titulo)}</b>
+        <button class="modal-x" aria-label="Fechar">&times;</button></div>
+      <div class="modal-body">${conteudoHtml}</div>
+      <div class="modal-foot">${acoesHtml || ""}</div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener("click", e => { if (e.target === ov) fecharModal(); });
+  ov.querySelector(".modal-x").onclick = fecharModal;
+  document.addEventListener("keydown", _escFechar);
+  return ov;
+}
+
+// ── PATCH parcial ───────────────────────────────────────────────────────────
+SDK.patch = async (path, body) => {
+  const r = await fetch(API + path, {
+    method: "PATCH", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (r.status === 409) throw new Error("Código patrimonial já existe");
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
+};
+
+// ── Render compartilhado da ficha (página + modal) ──────────────────────────
+function renderFichaResumo(i) {
+  const div = i.divergencia_flag ? ' <span class="bdg amber">divergência flag×data</span>' : "";
+  const igp = i.igp == null ? "" :
+    ` · <span class="bdg slate">IGP ${i.igp} — ${CLASSE_LABEL[i.classe_prioridade]}</span>`;
+  const status = badgeStatus(i.status) +
+    (i.dias_restantes != null ? ` <span class="muted">(${i.dias_restantes} dias)</span>` : "") +
+    ` <span class="bdg slate">${esc(i.status_operacional)}</span>` + div + igp;
+  const linhas = [
+    ["Patrimônio", i.codigo_patrimonial], ["Série", i.serial],
+    ["Marca", i.marca], ["Modelo", i.modelo],
+    ["Família", i.familia_nome], ["Tipo", i.tipo_nome],
+    ["Grandeza", i.grandeza_nome], ["Unidade", i.unidade_simbolo],
+    ["Faixa", [i.faixa_min, i.faixa_max].some(v => v != null) ? `${i.faixa_min ?? ""} … ${i.faixa_max ?? ""}` : i.faixa],
+    ["Resolução", i.resolucao], ["EMP", i.emp],
+    ["Disciplina", i.disciplina], ["Sistema", i.sistema],
+    ["Localização", [i.organizacao, i.unidade_org, i.secao, i.bancada].filter(Boolean).join(" → ")],
+    ["Ciclo (meses)", i.ciclo_meses],
+    ["Última calibração", fmtData(i.data_ultima_calibracao)],
+    ["Validade", fmtData(i.data_validade)],
+    ["Organização calibradora", i.organizacao_calibradora],
+    ["Certificado", i.certificado_ref], ["Observações", i.observacoes],
+  ];
+  const tabela = linhas.map(([k, v]) =>
+    `<tr><th style="width:200px">${k}</th><td>${esc(v) || "—"}</td></tr>`).join("");
+  const anexos =
+    (i.foto_path ? `<a href="${i.foto_path}" target="_blank">Foto</a> ` : '<span class="muted">Sem foto</span> ') +
+    (i.manual_path ? ` · <a href="${i.manual_path}" target="_blank">Manual (PDF)</a>` : ' · <span class="muted">Sem manual</span>');
+  return `<div style="margin-bottom:12px">${status}</div>
+    <div class="twrap"><table><tbody>${tabela}</tbody></table></div>
+    <div style="margin-top:12px"><b>Anexos</b><div style="margin-top:6px">${anexos}</div></div>`;
+}
