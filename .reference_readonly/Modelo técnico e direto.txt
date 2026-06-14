@@ -1,0 +1,86 @@
+Modelo técnico e direto para quantificar e classificar equipamentos de medição, estruturado para uso em sistemas de gestão metrológica alinhados à ISO 9001:2015, ISO/IEC 17025, VIM e boas práticas de engenharia de confiabilidade e gestão de ativos. O objetivo é criar um critério reproduzível, auditável e fácil de parametrizar em banco de dados.
+
+Modelo de Classificação e Priorização de Equipamentos de Medição
+1. Variáveis principais
+1.1 Frequência de uso (FU)
+
+Base para priorização de calibração, manutenção e substituição.
+
+Classe	Definição	Critério sugerido
+Alta (3)	Uso contínuo ou diário	> 20 utilizações/mês
+Média (2)	Uso regular	5 a 20 utilizações/mês
+Baixa (1)	Uso esporádico	< 5 utilizações/mês
+
+Fonte: prática de gestão de ativos e requisitos de controle operacional da ISO 9001 7.1.5.
+
+1.2 Necessidade crítica (NC)
+
+Avalia impacto no processo, risco metrológico e rastreabilidade.
+
+Classe	Definição	Exemplos
+Crítico (3)	Afeta diretamente conformidade do produto, segurança ou requisitos regulatórios	padrões, calibração final, medições legais
+Importante (2)	Afeta desempenho ou qualidade, mas não impede operação	medição intermediária como paquímetros, multímetros não-padrão
+Baixo impacto (1)	Medição auxiliar, sem impacto direto no produto	ferramentas de conferência, indicadores visuais
+
+Baseado no RAC (Risk Assessment of Calibration) e abordagens ISO 17025 para impacto metrológico.
+
+1.3 Abundância ou redundância (AB)
+
+Avalia disponibilidade de equipamentos equivalentes ou substitutos funcionais.
+
+Classe	Definição
+Baixa redundância (3)	Único exemplar ou insubstituível
+Média redundância (2)	Existem alternativas, mas com limitações
+Alta redundância (1)	Vários modelos equivalentes e disponíveis
+
+Justifica priorização de manutenção e reposição.
+
+1.4 Criticidade metrológica (CM)
+
+Avalia sensibilidade ao desvio, tolerâncias do processo e probabilidade de deterioração.
+
+Classe	Critério	Exemplos
+Alta (3)	Baixa tolerância de processo; erro gera rejeição ou recall	padrões, sensores críticos
+Média (2)	Tolerância moderada	instrumentos gerais de bancada
+Baixa (1)	Tolerância alta	manômetros auxiliares, indicadores
+1.5 Custo de indisponibilidade (CI)
+
+Combina impacto operacional e custo de parada.
+
+Classe	Critério
+Alto (3)	Afeta linha produtiva, causa paradas ou atrasos significativos
+Médio (2)	Impacto moderado
+Baixo (1)	Impacto mínimo
+2. Índice Global de Prioridade do Equipamento (IGP)
+
+Proponho um índice composto simples, ponderável:
+
+IGP=(FU×1)+(NC×2)+(AB×1)+(CM×2)+(CI×1)
+
+Justificativa das ponderações:
+
+NC e CM têm peso maior por alinhamento ao risco metrológico (ISO 9001: pensamento baseado em risco).
+FU, AB e CI complementam análise de disponibilidade e operação.
+
+Faixas sugeridas:
+
+IGP	Classificação	Ação
+11–15	Prioridade máxima	calibração mais frequente, backup, substituto
+7–10	Prioridade média	manter plano normal
+5–6	Baixa	ampliar intervalos, considerar agrupar calibrações
+0–4	Muito baixa	pode ir para item não cronometrado (se aplicável)
+3. Matriz de Classificação (pronta para planilha ou banco de dados)
+Equipamento	FU	NC	AB	CM	CI	IGP	Classe	Observações
+
+Preparado para uso direto no Laravel/SQLite.
+
+4. Regras operacionais para o sistema
+Cada equipamento recebe valores 1–3 para cada variável.
+O sistema recalcula automaticamente o IGP ao editar qualquer variável.
+Relatórios:
+Ranking de prioridade
+Lista de equipamentos críticos sem redundância
+Equipamentos com IGP > 10 recomendados para backup
+Usar o IGP para modular intervalos de calibração:
+Classe alta: encurtar intervalos
+Classe baixa: estender, desde que baseado em histórico e controle metrológico (ISO 17025).
