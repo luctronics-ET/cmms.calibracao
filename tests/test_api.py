@@ -220,3 +220,63 @@ def test_upload_manual_rejeita_nao_pdf(client):
     r = client.post(f"/api/v1/instrumentos/{iid}/manual",
                     files={"arquivo": ("m.png", b"\x89PNG", "image/png")})
     assert r.status_code == 415
+
+
+def test_patch_altera_so_o_campo_enviado(client):
+    fam_id, tipo_id = _dom(client)
+    iid = client.post("/api/v1/instrumentos", json={
+        "equipamento": "ORIG", "familia_id": fam_id, "tipo_id": tipo_id,
+        "ciclo_meses": 24, "marca": "Fluke"}).json()["id"]
+    r = client.patch(f"/api/v1/instrumentos/{iid}", json={"secao": "Bancada 3"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["secao"] == "Bancada 3"
+    # preservados:
+    assert body["equipamento"] == "ORIG"
+    assert body["ciclo_meses"] == 24
+    assert body["marca"] == "Fluke"
+
+
+def test_patch_recalcula_igp(client):
+    fam_id, tipo_id = _dom(client)
+    iid = client.post("/api/v1/instrumentos", json={
+        "equipamento": "X", "familia_id": fam_id, "tipo_id": tipo_id}).json()["id"]
+    r = client.patch(f"/api/v1/instrumentos/{iid}",
+                     json={"fu": 3, "nc": 3, "ab": 2, "cm": 3, "ci": 2})
+    assert r.json()["igp"] == 19
+    assert r.json()["classe_prioridade"] == "MAXIMA"
+
+
+def test_patch_inexistente_404(client):
+    assert client.patch("/api/v1/instrumentos/99999", json={"secao": "z"}).status_code == 404
+
+
+def test_patch_patrimonio_duplicado_409(client):
+    fam_id, tipo_id = _dom(client)
+    client.post("/api/v1/instrumentos", json={"equipamento": "A", "familia_id": fam_id,
+                "tipo_id": tipo_id, "codigo_patrimonial": "PX-1"})
+    iid = client.post("/api/v1/instrumentos", json={"equipamento": "B", "familia_id": fam_id,
+                      "tipo_id": tipo_id}).json()["id"]
+    r = client.patch(f"/api/v1/instrumentos/{iid}", json={"codigo_patrimonial": "PX-1"})
+    assert r.status_code == 409
+
+
+def test_patch_corpo_parcial_sem_obrigatorios_ok(client):
+    fam_id, tipo_id = _dom(client)
+    iid = client.post("/api/v1/instrumentos", json={"equipamento": "Y", "familia_id": fam_id,
+                      "tipo_id": tipo_id}).json()["id"]
+    # corpo só com status — não exige equipamento/familia/tipo
+    r = client.patch(f"/api/v1/instrumentos/{iid}", json={"status_operacional": "EM_MANUTENCAO"})
+    assert r.status_code == 200
+    assert r.json()["status_operacional"] == "EM_MANUTENCAO"
+    assert r.json()["equipamento"] == "Y"
+
+
+def test_patch_status_null_nao_quebra(client):
+    fam_id, tipo_id = _dom(client)
+    iid = client.post("/api/v1/instrumentos", json={"equipamento": "S", "familia_id": fam_id,
+                      "tipo_id": tipo_id, "status_operacional": "EM_MANUTENCAO"}).json()["id"]
+    r = client.patch(f"/api/v1/instrumentos/{iid}", json={"status_operacional": None, "secao": "B1"})
+    assert r.status_code == 200
+    assert r.json()["status_operacional"] == "EM_MANUTENCAO"   # preservado, não nulo
+    assert r.json()["secao"] == "B1"

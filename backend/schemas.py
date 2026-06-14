@@ -95,6 +95,43 @@ class InstrumentoIn(BaseModel):
     ci: int | None = Field(None, ge=1, le=3)
 
 
+class InstrumentoPatch(BaseModel):
+    """Atualização parcial: todos os campos opcionais; só os enviados são aplicados."""
+    equipamento: str | None = None
+    familia_id: int | None = None
+    tipo_id: int | None = None
+    ciclo_meses: int | None = None
+    status_operacional: str | None = None
+    codigo_interno: str | None = None
+    codigo_patrimonial: str | None = None
+    serial: str | None = None
+    marca: str | None = None
+    modelo: str | None = None
+    faixa_min: float | None = None
+    faixa_max: float | None = None
+    resolucao: str | None = None
+    emp: str | None = None
+    disciplina: str | None = None
+    grandeza_id: int | None = None
+    unidade_id: int | None = None
+    sistema: str | None = None
+    organizacao: str | None = None
+    unidade_org: str | None = None
+    secao: str | None = None
+    bancada: str | None = None
+    data_ultima_calibracao: date | None = None
+    data_validade: date | None = None
+    organizacao_calibradora: str | None = None
+    local_calibracao: str | None = None
+    certificado_ref: str | None = None
+    observacoes: str | None = None
+    fu: int | None = Field(None, ge=1, le=3)
+    nc: int | None = Field(None, ge=1, le=3)
+    ab: int | None = Field(None, ge=1, le=3)
+    cm: int | None = Field(None, ge=1, le=3)
+    ci: int | None = Field(None, ge=1, le=3)
+
+
 class ProblemaImport(BaseModel):
     severidade: str
     campo: str

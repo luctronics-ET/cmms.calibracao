@@ -25,40 +25,201 @@
       <option value="NAO_CLASSIFICADO">Não classificado</option></select>
     <a class="btn" href="cadastro.html" style="margin-left:auto"><i class="bi bi-plus-lg"></i> Novo</a>
   </div>
+  <div class="selbar" id="selbar" style="display:none">
+    <b id="selcount">0 selecionado(s)</b>
+    <button class="btn" id="btnLote"><i class="bi bi-pencil-square"></i> Editar selecionados</button>
+    <button class="btn ghost" id="btnLimpar">Limpar seleção</button>
+  </div>
   <div class="muted" id="cont" style="margin-bottom:8px"></div>
   <div class="twrap"><table id="tab"><thead><tr>
+    <th class="chk"><input type="checkbox" id="chkAll" title="Selecionar todos"></th>
     <th>Código</th><th>Equipamento</th><th>Marca/Modelo</th><th>Disc.</th>
     <th>Sistema</th><th>Validade</th><th>Status</th></tr></thead><tbody></tbody></table></div>
 </main>
 <script>
 montarShell("inventario.html");
 let timer;
+let itensAtuais = [];
+const selecionados = new Set();
+
+const busca = document.getElementById("busca"), disciplina = document.getElementById("disciplina"),
+      sistema = document.getElementById("sistema"), status = document.getElementById("status"),
+      familia = document.getElementById("familia"), classe = document.getElementById("classe"),
+      cont = document.getElementById("cont"), chkAll = document.getElementById("chkAll"),
+      selbar = document.getElementById("selbar"), selcount = document.getElementById("selcount");
+
+function atualizarBarra() {
+  selcount.textContent = `${selecionados.size} selecionado(s)`;
+  selbar.style.display = selecionados.size ? "flex" : "none";
+}
+
+function renderLinhas() {
+  document.querySelector("#tab tbody").innerHTML = itensAtuais.map(i => `
+    <tr data-id="${i.id}">
+      <td class="chk"><input type="checkbox" class="rowchk" data-id="${i.id}" ${selecionados.has(i.id) ? "checked" : ""}></td>
+      <td>${esc(i.codigo_interno || i.codigo_patrimonial)}</td>
+      <td>${esc(i.equipamento)}</td><td>${esc([i.marca, i.modelo].filter(Boolean).join(" "))}</td>
+      <td>${esc(i.disciplina)}</td><td>${esc(i.sistema)}</td>
+      <td>${fmtData(i.data_validade)}</td><td>${badgeStatus(i.status)}</td></tr>`).join("")
+    || `<tr><td colspan="8" class="muted">Nada encontrado.</td></tr>`;
+}
+
 async function carregar() {
   const params = {
     busca: busca.value, disciplina: disciplina.value, sistema: sistema.value,
     status: status.value, familia_id: familia.value, classe_prioridade: classe.value,
   };
+  selecionados.clear();           // trocar filtro/busca limpa seleção
+  chkAll.checked = false;
+  atualizarBarra();
   const r = await SDK.get("/instrumentos", params);
+  itensAtuais = r.itens;
   cont.textContent = `${r.total} instrumento(s)`;
-  document.querySelector("#tab tbody").innerHTML = r.itens.map(i => `
-    <tr><td><a href="ficha.html?id=${i.id}">${esc(i.codigo_interno || i.codigo_patrimonial)}</a></td>
-    <td>${esc(i.equipamento)}</td><td>${esc([i.marca, i.modelo].filter(Boolean).join(" "))}</td>
-    <td>${esc(i.disciplina)}</td><td>${esc(i.sistema)}</td>
-    <td>${fmtData(i.data_validade)}</td><td>${badgeStatus(i.status)}</td></tr>`).join("")
-    || `<tr><td colspan="7" class="muted">Nada encontrado.</td></tr>`;
+  renderLinhas();
 }
-const busca = document.getElementById("busca"), disciplina = document.getElementById("disciplina"),
-      sistema = document.getElementById("sistema"), status = document.getElementById("status"),
-      familia = document.getElementById("familia"), classe = document.getElementById("classe"),
-      cont = document.getElementById("cont");
+
+// clique na linha (exceto checkbox) → modal da ficha
+document.querySelector("#tab tbody").addEventListener("click", async (e) => {
+  if (e.target.classList.contains("rowchk")) return;
+  const tr = e.target.closest("tr[data-id]");
+  if (!tr) return;
+  const i = await SDK.get("/instrumentos/" + tr.dataset.id);
+  abrirModal(`${i.codigo_interno || i.codigo_patrimonial || ""} — ${i.equipamento || ""}`,
+    renderFichaResumo(i),
+    `<a class="btn ghost" href="ficha.html?id=${i.id}">Ficha completa</a>
+     <a class="btn" href="cadastro.html?id=${i.id}">Editar</a>`);
+});
+
+// checkbox por linha
+document.querySelector("#tab tbody").addEventListener("change", (e) => {
+  if (!e.target.classList.contains("rowchk")) return;
+  const id = parseInt(e.target.dataset.id);
+  if (e.target.checked) selecionados.add(id); else selecionados.delete(id);
+  atualizarBarra();
+});
+
+chkAll.onchange = () => {
+  if (chkAll.checked) itensAtuais.forEach(i => selecionados.add(i.id));
+  else selecionados.clear();
+  renderLinhas();
+  atualizarBarra();
+};
+
+document.getElementById("btnLimpar").onclick = () => {
+  selecionados.clear(); chkAll.checked = false; renderLinhas(); atualizarBarra();
+};
+
+document.getElementById("btnLote").onclick = () => abrirEdicaoLote();
+
 [disciplina, sistema, status, familia, classe].forEach(e => e.onchange = carregar);
 busca.oninput = () => { clearTimeout(timer); timer = setTimeout(carregar, 250); };
+
 (async () => {
   const r = await SDK.get("/instrumentos");
   [...new Set(r.itens.map(i => i.sistema).filter(Boolean))].sort()
     .forEach(s => sistema.add(new Option(s, s)));
-  const d = await SDK.get("/dominios");
-  d.familias.forEach(f => familia.add(new Option(f.nome, f.id)));
+  window._dominios = await SDK.get("/dominios");
+  window._dominios.familias.forEach(f => familia.add(new Option(f.nome, f.id)));
   carregar();
 })();
-</script></body></html>
+
+// ── Edição em lote ──────────────────────────────────────────────────────────
+const STATUS_OP = ["ATIVO", "EM_CALIBRACAO", "EM_MANUTENCAO", "REPROVADO", "BLOQUEADO", "BAIXADO"];
+const CAMPOS_LOTE = [
+  { key: "codigo_patrimonial", label: "Patrimônio", tipo: "text" },
+  { key: "familia_id", label: "Família", tipo: "dom", dom: "familias" },
+  { key: "tipo_id", label: "Tipo", tipo: "dom", dom: "tipos" },
+  { key: "grandeza_id", label: "Grandeza", tipo: "dom", dom: "grandezas" },
+  { key: "unidade_id", label: "Unidade", tipo: "dom", dom: "unidades" },
+  { key: "status_operacional", label: "Status oper.", tipo: "opcoes", opcoes: STATUS_OP },
+  { key: "ciclo_meses", label: "Ciclo (m)", tipo: "num" },
+  { key: "secao", label: "Seção", tipo: "text" },
+  { key: "bancada", label: "Bancada", tipo: "text" },
+  { key: "fu", label: "FU", tipo: "igp" }, { key: "nc", label: "NC", tipo: "igp" },
+  { key: "ab", label: "AB", tipo: "igp" }, { key: "cm", label: "CM", tipo: "igp" },
+  { key: "ci", label: "CI", tipo: "igp" },
+];
+const INT_KEYS = ["familia_id", "tipo_id", "grandeza_id", "unidade_id", "ciclo_meses", "fu", "nc", "ab", "cm", "ci"];
+
+function _optsDom(domKey, valor) {
+  const itens = window._dominios[domKey] || [];
+  return `<option value="">—</option>` + itens.map(o =>
+    `<option value="${o.id}" ${o.id == valor ? "selected" : ""}>${esc(o.simbolo ? `${o.nome} (${o.simbolo})` : o.nome)}</option>`).join("");
+}
+function _optsLista(lista, valor) {
+  return `<option value="">—</option>` + lista.map(o =>
+    `<option ${o == valor ? "selected" : ""}>${o}</option>`).join("");
+}
+
+function _celula(campo, item) {
+  const v = item[campo.key];
+  const at = `data-id="${item.id}" data-key="${campo.key}"`;
+  if (campo.tipo === "dom") return `<select ${at}>${_optsDom(campo.dom, v)}</select>`;
+  if (campo.tipo === "opcoes") return `<select ${at}>${_optsLista(campo.opcoes, v)}</select>`;
+  if (campo.tipo === "num") return `<input ${at} type="number" value="${v ?? ""}">`;
+  if (campo.tipo === "igp") return `<input ${at} type="number" min="1" max="3" value="${v ?? ""}">`;
+  return `<input ${at} type="text" value="${esc(v) ?? ""}">`;
+}
+
+function abrirEdicaoLote() {
+  const sel = itensAtuais.filter(i => selecionados.has(i.id));
+  if (!sel.length) return;
+  const picks = CAMPOS_LOTE.map(c =>
+    `<label><input type="checkbox" class="pickcampo" value="${c.key}"> ${c.label}</label>`).join("");
+  abrirModal(`Editar ${sel.length} item(ns)`,
+    `<div><b>1. Campos a editar</b>
+       <div class="campos-pick" id="picker">${picks}</div></div>
+     <div id="loteArea"></div>`,
+    `<button class="btn" id="btnSalvarLote">Salvar tudo</button>
+     <button class="btn ghost" onclick="fecharModal()">Cancelar</button>
+     <span id="loteMsg" class="muted"></span>`);
+
+  const area = document.getElementById("loteArea");
+  function montarTabela() {
+    const escolhidos = [...document.querySelectorAll(".pickcampo:checked")]
+      .map(c => CAMPOS_LOTE.find(x => x.key === c.value));
+    if (!escolhidos.length) { area.innerHTML = `<p class="muted" style="margin-top:10px">Escolha ao menos um campo.</p>`; return; }
+    const ths = escolhidos.map(c =>
+      `<th>${c.label} <button type="button" class="btn ghost" style="padding:1px 6px" data-fill="${c.key}" title="Preencher coluna">↓</button></th>`).join("");
+    const rows = sel.map(i => `<tr><td>${esc(i.codigo_interno || i.codigo_patrimonial)}</td>
+      <td>${esc(i.equipamento)}</td>${escolhidos.map(c => `<td>${_celula(c, i)}</td>`).join("")}</tr>`).join("");
+    area.innerHTML = `<div class="twrap" style="margin-top:10px"><table class="lote-tab">
+      <thead><tr><th>Código</th><th>Equipamento</th>${ths}</tr></thead><tbody>${rows}</tbody></table></div>`;
+    area.querySelectorAll("[data-fill]").forEach(b => b.onclick = () => {
+      const key = b.dataset.fill;
+      const campos = [...area.querySelectorAll(`[data-key="${key}"]`)];
+      if (!campos.length) return;
+      const val = campos[0].value;
+      campos.forEach(c => c.value = val);
+    });
+  }
+  document.getElementById("picker").addEventListener("change", montarTabela);
+
+  document.getElementById("btnSalvarLote").onclick = async () => {
+    const escolhidos = [...document.querySelectorAll(".pickcampo:checked")].map(c => c.value);
+    if (!escolhidos.length) return alert("Escolha ao menos um campo.");
+    const msg = document.getElementById("loteMsg");
+    const erros = [];
+    let n = 0;
+    for (const item of sel) {
+      const body = {};
+      escolhidos.forEach(key => {
+        const el = area.querySelector(`[data-key="${key}"][data-id="${item.id}"]`);
+        if (!el) return;
+        const raw = el.value.trim();
+        if (raw === "") return;                       // vazio = não altera
+        body[key] = INT_KEYS.includes(key) ? parseInt(raw) : raw;
+      });
+      n++;
+      msg.textContent = `salvando ${n}/${sel.length}...`;
+      if (Object.keys(body).length === 0) continue;
+      try { await SDK.patch("/instrumentos/" + item.id, body); }
+      catch (e) { erros.push(`${item.codigo_interno || item.id}: ${e.message}`); }
+    }
+    if (erros.length) { msg.innerHTML = `<span class="sev-erro">${esc(erros.join(" | "))}</span>`; }
+    else { fecharModal(); }
+    await carregar();
+  };
+}
+</script>
+</body></html>

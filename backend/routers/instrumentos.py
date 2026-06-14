@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from backend.db import get_db
 from backend.models import Instrumento, Disciplina, StatusOperacional
 from backend.servico import instrumento_para_out
-from backend.schemas import ListaInstrumentos, InstrumentoOut, InstrumentoIn
+from backend.schemas import ListaInstrumentos, InstrumentoOut, InstrumentoIn, InstrumentoPatch
 
 router = APIRouter(prefix="/api/v1", tags=["instrumentos"])
 
@@ -94,6 +94,33 @@ def editar(inst_id: int, dados: InstrumentoIn, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Instrumento não encontrado")
     _checar_patrimonio(db, dados.codigo_patrimonial, ignorar_id=inst_id)
     _aplicar(inst, dados)
+    db.commit()
+    db.refresh(inst)
+    return instrumento_para_out(inst, date.today())
+
+
+def _aplicar_parcial(inst: Instrumento, dados: InstrumentoPatch) -> None:
+    payload = dados.model_dump(exclude_unset=True)
+    # status_operacional é NOT NULL no banco — null explícito = "não alterar"
+    if payload.get("status_operacional") is None:
+        payload.pop("status_operacional", None)
+    else:
+        payload["status_operacional"] = StatusOperacional(payload["status_operacional"])
+    if payload.get("disciplina") is not None:
+        payload["disciplina"] = Disciplina(payload["disciplina"].upper())
+    for campo, valor in payload.items():
+        setattr(inst, campo, valor)
+
+
+@router.patch("/instrumentos/{inst_id}", response_model=InstrumentoOut)
+def patch(inst_id: int, dados: InstrumentoPatch, db: Session = Depends(get_db)):
+    inst = db.get(Instrumento, inst_id)
+    if not inst:
+        raise HTTPException(status_code=404, detail="Instrumento não encontrado")
+    enviados = dados.model_dump(exclude_unset=True)
+    if "codigo_patrimonial" in enviados:
+        _checar_patrimonio(db, enviados["codigo_patrimonial"], ignorar_id=inst_id)
+    _aplicar_parcial(inst, dados)
     db.commit()
     db.refresh(inst)
     return instrumento_para_out(inst, date.today())
