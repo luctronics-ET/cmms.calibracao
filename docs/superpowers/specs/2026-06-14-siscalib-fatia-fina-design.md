@@ -124,7 +124,7 @@ Dois endpoints: preview faz dry-run sem gravar; commit grava.
 - ℹ️ **info**: campos opcionais vazios.
 
 ### Contrato da API
-- `POST /api/v1/importacao/preview` — recebe o arquivo; devolve `{totais:{validas,com_aviso,com_erro}, linhas:[{numero, dados_normalizados, problemas:[{severidade,campo,mensagem}]}]}`. Não grava.
+- `POST /api/v1/importacao/preview` — recebe o arquivo; devolve `{totais:{total_linhas,validas,com_aviso,com_erro}, linhas:[{numero, dados, problemas:[{severidade,campo,mensagem}]}]}`. Não grava. (Avisos incluem duplicatas prováveis por `codigo_interno`+`serial`+`modelo`.)
 - `POST /api/v1/importacao/commit` — grava as linhas válidas. Devolve `{inseridos, ignorados}`.
 
 **Critério de aceite:** 496 registros em < 60s; problemas linha a linha (PRD 6.5). Testes com amostra real do CSV.
