@@ -270,3 +270,13 @@ def test_patch_corpo_parcial_sem_obrigatorios_ok(client):
     assert r.status_code == 200
     assert r.json()["status_operacional"] == "EM_MANUTENCAO"
     assert r.json()["equipamento"] == "Y"
+
+
+def test_patch_status_null_nao_quebra(client):
+    fam_id, tipo_id = _dom(client)
+    iid = client.post("/api/v1/instrumentos", json={"equipamento": "S", "familia_id": fam_id,
+                      "tipo_id": tipo_id, "status_operacional": "EM_MANUTENCAO"}).json()["id"]
+    r = client.patch(f"/api/v1/instrumentos/{iid}", json={"status_operacional": None, "secao": "B1"})
+    assert r.status_code == 200
+    assert r.json()["status_operacional"] == "EM_MANUTENCAO"   # preservado, não nulo
+    assert r.json()["secao"] == "B1"

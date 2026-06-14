@@ -101,10 +101,13 @@ def editar(inst_id: int, dados: InstrumentoIn, db: Session = Depends(get_db)):
 
 def _aplicar_parcial(inst: Instrumento, dados: InstrumentoPatch) -> None:
     payload = dados.model_dump(exclude_unset=True)
-    if payload.get("disciplina"):
-        payload["disciplina"] = Disciplina(payload["disciplina"].upper())
-    if payload.get("status_operacional"):
+    # status_operacional é NOT NULL no banco — null explícito = "não alterar"
+    if payload.get("status_operacional") is None:
+        payload.pop("status_operacional", None)
+    else:
         payload["status_operacional"] = StatusOperacional(payload["status_operacional"])
+    if payload.get("disciplina") is not None:
+        payload["disciplina"] = Disciplina(payload["disciplina"].upper())
     for campo, valor in payload.items():
         setattr(inst, campo, valor)
 
