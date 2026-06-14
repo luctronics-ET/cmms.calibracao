@@ -62,3 +62,35 @@ def test_divergencia_calibrado_mas_vencido():
 
 def test_sem_divergencia_quando_coerente():
     assert calcular_status(date(2027, 1, 1), "CALIBRADO", HOJE).divergencia_flag is False
+
+
+# --- Testes de fronteira (off-by-one) ---
+
+def test_fronteira_dias_7():
+    # dias == 7: último dia do intervalo A_VENCER_7
+    assert calcular_status(date(2026, 6, 21), "CALIBRADO", HOJE).status == StatusCalibracao.A_VENCER_7
+
+
+def test_fronteira_dias_8():
+    # dias == 8: primeiro dia do intervalo A_VENCER_30
+    assert calcular_status(date(2026, 6, 22), "CALIBRADO", HOJE).status == StatusCalibracao.A_VENCER_30
+
+
+def test_fronteira_dias_30():
+    # dias == 30: último dia do intervalo A_VENCER_30
+    assert calcular_status(date(2026, 7, 14), "CALIBRADO", HOJE).status == StatusCalibracao.A_VENCER_30
+
+
+def test_fronteira_dias_31():
+    # dias == 31: primeiro dia do intervalo A_VENCER_60
+    assert calcular_status(date(2026, 7, 15), "CALIBRADO", HOJE).status == StatusCalibracao.A_VENCER_60
+
+
+def test_fronteira_dias_60():
+    # dias == 60: último dia do intervalo A_VENCER_60
+    assert calcular_status(date(2026, 8, 13), "CALIBRADO", HOJE).status == StatusCalibracao.A_VENCER_60
+
+
+def test_fronteira_dias_61():
+    # dias == 61: primeiro dia do intervalo VALIDO
+    assert calcular_status(date(2026, 8, 14), "CALIBRADO", HOJE).status == StatusCalibracao.VALIDO

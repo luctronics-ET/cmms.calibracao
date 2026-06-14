@@ -52,6 +52,7 @@ def calcular_status(
         return ResultadoStatus(StatusCalibracao.SEM_DATA, None, False)
 
     dias = (data_validade - hoje).days
+    # dias == 0 significa "vence hoje, ainda válido" — cai em A_VENCER_7
     if dias < 0:
         status = StatusCalibracao.VENCIDO
     elif dias <= LIMIAR_7:
