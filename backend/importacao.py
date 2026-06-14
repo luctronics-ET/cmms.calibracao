@@ -60,7 +60,6 @@ def processar_csv(conteudo: bytes) -> dict:
 
     indices = _mapa_indices(leitor[0])
     linhas_saida = []
-    validas = com_aviso = com_erro = 0
 
     for numero, bruto in enumerate(leitor[1:], start=2):
         if not any(c.strip() for c in bruto):
@@ -101,10 +100,32 @@ def processar_csv(conteudo: bytes) -> dict:
         flag = (dados.get("flag_origem") or "").upper()
         val = dados.get("data_validade")
         if flag.startswith("DESCAL") and val is not None:
-            from datetime import date as _d  # comparação informativa apenas
             problemas.append({"severidade": "aviso", "campo": "flag_origem",
                               "mensagem": "marcado DESCALIBRADO mas possui data de validade"})
 
+        linhas_saida.append({"numero": numero, "dados": dados, "problemas": problemas})
+
+    # 2ª passada: detecção de prováveis duplicatas (apenas com código interno)
+    grupos: dict[tuple, list[dict]] = {}
+    for linha in linhas_saida:
+        d = linha["dados"]
+        cod = d.get("codigo_interno")
+        if cod:
+            chave = (cod, d.get("serial"), d.get("modelo"))
+            grupos.setdefault(chave, []).append(linha)
+    for grupo in grupos.values():
+        n = len(grupo)
+        if n > 1:
+            for linha in grupo:
+                linha["problemas"].append({
+                    "severidade": "aviso", "campo": "duplicata",
+                    "mensagem": f"provável duplicata ({n} ocorrências do mesmo código/série/modelo)",
+                })
+
+    # totais recalculados após avisos de duplicata
+    validas = com_aviso = com_erro = 0
+    for linha in linhas_saida:
+        problemas = linha["problemas"]
         tem_erro = any(p["severidade"] == "erro" for p in problemas)
         tem_aviso = any(p["severidade"] == "aviso" for p in problemas)
         if tem_erro:
@@ -113,8 +134,6 @@ def processar_csv(conteudo: bytes) -> dict:
             validas += 1
             if tem_aviso:
                 com_aviso += 1
-
-        linhas_saida.append({"numero": numero, "dados": dados, "problemas": problemas})
 
     total = len(linhas_saida)
     return {

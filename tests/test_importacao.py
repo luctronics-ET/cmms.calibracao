@@ -44,3 +44,39 @@ def test_sem_serial_nao_eh_erro():
 def test_totais_somam():
     t = _proc()["totais"]
     assert t["validas"] + t["com_erro"] == t["total_linhas"]
+
+
+def test_detecta_duplicatas():
+    import csv
+    import io
+    from backend.importacao import _mapa_indices
+
+    # reutiliza o cabeçalho real da fixture (pode conter quebras embutidas em campos)
+    cabecalho = next(csv.reader(io.StringIO(FIXTURE.decode("utf-8-sig"))))
+    indices = _mapa_indices(cabecalho)
+    n_cols = len(cabecalho)
+
+    def _linha():
+        cols = [""] * n_cols
+        cols[indices["disciplina"]] = "ELE"
+        cols[indices["equipamento"]] = "MULTIMETRO"
+        cols[indices["marca"]] = "FLUKE"
+        cols[indices["modelo"]] = "87V"
+        cols[indices["codigo_interno"]] = "DUP-001"
+        cols[indices["serial"]] = "SN-9"
+        return cols
+
+    buf = io.StringIO()
+    escritor = csv.writer(buf)
+    escritor.writerow(cabecalho)
+    escritor.writerow(_linha())
+    escritor.writerow(_linha())
+    csv_bytes = buf.getvalue().encode("utf-8")
+
+    res = processar_csv(csv_bytes)
+    linhas = res["linhas"]
+    assert len(linhas) == 2
+    for linha in linhas:
+        dups = [p for p in linha["problemas"]
+                if p["campo"] == "duplicata" and p["severidade"] == "aviso"]
+        assert len(dups) == 1
