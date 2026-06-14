@@ -105,6 +105,28 @@ def test_delete_calibracao_recalcula(client):
     assert r.json()["data_validade"] == "2026-01-01"
 
 
+def test_delete_unica_calibracao_limpa_datas(client):
+    iid = _id_primeiro(client)
+    cal = client.post(f"/api/v1/instrumentos/{iid}/calibracoes", json={
+        "data_calibracao": "2026-03-10", "resultado": "APROVADO"}).json()["calibracao"]
+    r = client.delete(f"/api/v1/instrumentos/{iid}/calibracoes/{cal['id']}")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["data_validade"] is None
+    assert body["data_ultima_calibracao"] is None
+
+
+def test_post_calibracao_aprovado_com_restricoes_tem_validade(client):
+    iid = _id_primeiro(client)
+    r = client.post(f"/api/v1/instrumentos/{iid}/calibracoes", json={
+        "data_calibracao": "2026-03-10", "resultado": "APROVADO_COM_RESTRICOES",
+    })
+    assert r.status_code == 201
+    body = r.json()
+    assert body["calibracao"]["data_validade"] == "2027-03-10"
+    assert body["instrumento"]["status_operacional"] == "ATIVO"
+
+
 def test_delete_calibracao_inexistente_404(client):
     iid = _id_primeiro(client)
     r = client.delete(f"/api/v1/instrumentos/{iid}/calibracoes/99999")

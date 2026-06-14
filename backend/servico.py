@@ -87,9 +87,9 @@ def aplicar_derivados(inst: Instrumento, db: Session) -> None:
     a partir das suas calibrações e dá commit."""
     cals = db.query(Calibracao).filter(Calibracao.instrumento_id == inst.id).all()
     d = derivar_de_calibracoes(cals)
+    inst.data_ultima_calibracao = d.data_ultima_calibracao
+    inst.data_validade = d.data_validade
     if d.status_operacional is not None:
-        inst.data_ultima_calibracao = d.data_ultima_calibracao
-        inst.data_validade = d.data_validade
         inst.status_operacional = StatusOperacional(d.status_operacional)
     db.commit()
 
