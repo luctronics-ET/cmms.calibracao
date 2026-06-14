@@ -5,6 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from backend.db import Base, get_db
 from backend import models
+from backend.dominios import seed_dominios
 from backend.main import app
 
 
@@ -16,20 +17,23 @@ def client(tmp_path):
     Base.metadata.create_all(bind=engine)
 
     db = TestingSession()
+    seed_dominios(db)
+    fam = db.query(models.FamiliaMetrologica).filter_by(nome="Eletricidade e Magnetismo").first()
+    fam_mec = db.query(models.FamiliaMetrologica).filter_by(nome="Dimensional").first()
+    tipo = db.query(models.TipoInstrumento).filter_by(nome="Multímetro").first()
+    tipo_paq = db.query(models.TipoInstrumento).filter_by(nome="Paquímetro").first()
     db.add_all([
-        models.Instrumento(codigo_interno="A-1", equipamento="MULTÍMETRO",
-                           marca="Fluke",
+        models.Instrumento(codigo_interno="A-1", equipamento="MULTÍMETRO", marca="Fluke",
                            disciplina=models.Disciplina.ELE, sistema="MK-48",
-                           ciclo_meses=12, data_validade=date(2020, 1, 1),
-                           flag_origem="DESCALIBRADO"),
+                           familia_id=fam.id, tipo_id=tipo.id, ciclo_meses=12,
+                           data_validade=date(2020, 1, 1), flag_origem="DESCALIBRADO"),
         models.Instrumento(codigo_interno="A-2", equipamento="PAQUÍMETRO",
                            disciplina=models.Disciplina.MEC, sistema="F-21",
-                           ciclo_meses=12, data_validade=date(2099, 1, 1),
-                           flag_origem="CALIBRADO"),
+                           familia_id=fam_mec.id, tipo_id=tipo_paq.id, ciclo_meses=12,
+                           data_validade=date(2099, 1, 1), flag_origem="CALIBRADO"),
         models.Instrumento(codigo_interno="A-3", equipamento="TORQUÍMETRO",
                            disciplina=models.Disciplina.MEC, sistema="MK-48",
-                           ciclo_meses=12, data_validade=None,
-                           flag_origem=""),
+                           ciclo_meses=12, data_validade=None, flag_origem=""),
     ])
     db.commit()
     db.close()

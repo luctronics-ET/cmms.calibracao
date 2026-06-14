@@ -104,3 +104,21 @@ def test_alertas_csv(client):
     assert r.status_code == 200
     assert "text/csv" in r.headers["content-type"]
     assert "A-1" in r.text
+
+
+def test_dominios_lista_familias(client):
+    d = client.get("/api/v1/dominios").json()
+    assert len(d["familias"]) == 15
+    assert any(f["nome"] == "Eletricidade e Magnetismo" for f in d["familias"])
+    assert len(d["tipos"]) > 0
+    assert len(d["grandezas"]) > 0
+    assert len(d["unidades"]) > 0
+
+
+def test_dominios_filtra_por_familia(client):
+    full = client.get("/api/v1/dominios").json()
+    fam_id = next(f["id"] for f in full["familias"] if f["nome"] == "Dimensional")
+    d = client.get("/api/v1/dominios", params={"familia_id": fam_id}).json()
+    assert all(t["familia_id"] == fam_id for t in d["tipos"])
+    assert any(t["nome"] == "Paquímetro" for t in d["tipos"])
+    assert all(g["familia_id"] == fam_id for g in d["grandezas"])
