@@ -23,6 +23,14 @@ docker run -d --name siscalib --restart unless-stopped \
 3. Revise o relatório dry-run (linhas válidas / avisos / erros).
 4. Clique **Confirmar importação**.
 
+## Cadastro metrológico
+- Os domínios (famílias RBC/INMETRO, tipos, grandezas, unidades) são semeados no startup
+  (`python -m backend.dominios`, idempotente).
+- Use **Novo** no Inventário (ou **Editar** na ficha) para preencher: classificação, faixa,
+  resolução/EMP, localização, estado operacional, anexos (foto/PDF) e o IGP (5 variáveis 1–3).
+- O **IGP** (Índice Global de Prioridade) é calculado automaticamente: faixas 18–21 máxima,
+  14–17 média, 11–13 baixa, 7–10 muito baixa.
+
 ## Backup
 O estado todo está em `/data/siscalib.db` — basta copiar esse arquivo.
 
