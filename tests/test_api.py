@@ -324,3 +324,18 @@ def test_export_ignora_ids_inexistentes(client):
 def test_export_ids_vazio_400(client):
     r = client.post("/api/v1/instrumentos/export", json={"ids": [], "formato": "csv"})
     assert r.status_code == 400
+
+
+def test_export_xlsx(client):
+    import io
+    import openpyxl
+    itens = client.get("/api/v1/instrumentos").json()["itens"]
+    ids = [i["id"] for i in itens]
+    r = client.post("/api/v1/instrumentos/export", json={"ids": ids, "formato": "xlsx"})
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith(
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    wb = openpyxl.load_workbook(io.BytesIO(r.content))
+    ws = wb.active
+    assert ws.cell(row=1, column=1).value == "Código interno"   # cabeçalho
+    assert ws.max_row == len(ids) + 1                            # itens + cabeçalho

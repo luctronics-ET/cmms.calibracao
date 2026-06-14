@@ -87,7 +87,24 @@ def _gerar_csv(linhas: list[dict]) -> bytes:
 
 
 def _gerar_xlsx(linhas: list[dict]) -> bytes:
-    raise NotImplementedError
+    from openpyxl import Workbook
+    from openpyxl.styles import Font
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Inventário"
+    rotulos = [rotulo for _, rotulo in COLUNAS]
+    ws.append(rotulos)
+    for celula in ws[1]:
+        celula.font = Font(bold=True)
+    for linha in linhas:
+        ws.append([linha[chave] for chave, _ in COLUNAS])
+    # auto-largura simples: maior conteúdo da coluna (limitado a 50)
+    for idx, (chave, rotulo) in enumerate(COLUNAS, start=1):
+        largura = max([len(rotulo)] + [len(str(l[chave])) for l in linhas]) + 2
+        ws.column_dimensions[ws.cell(row=1, column=idx).column_letter].width = min(largura, 50)
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
 
 
 def _gerar_pdf(instrumentos: list[InstrumentoOut]) -> bytes:
