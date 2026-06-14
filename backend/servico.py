@@ -92,3 +92,32 @@ def aplicar_derivados(inst: Instrumento, db: Session) -> None:
         inst.data_validade = d.data_validade
         inst.status_operacional = StatusOperacional(d.status_operacional)
     db.commit()
+
+
+def backfill_calibracoes_origem(db: Session) -> int:
+    """Cria 1 calibração origem='IMPORTACAO' para cada instrumento que tem
+    data_ultima_calibracao mas ainda não tem nenhuma calibração. Idempotente.
+    Retorna quantas calibrações foram criadas."""
+    criadas = 0
+    instrumentos = (db.query(Instrumento)
+                    .filter(Instrumento.data_ultima_calibracao.isnot(None))
+                    .all())
+    for inst in instrumentos:
+        existe = (db.query(Calibracao)
+                  .filter(Calibracao.instrumento_id == inst.id)
+                  .first())
+        if existe:
+            continue
+        db.add(Calibracao(
+            instrumento_id=inst.id,
+            data_calibracao=inst.data_ultima_calibracao,
+            data_validade=inst.data_validade,
+            ciclo_meses=inst.ciclo_meses or 12,
+            resultado=Resultado.APROVADO,
+            laboratorio=inst.organizacao_calibradora,
+            numero_certificado=inst.certificado_ref,
+            origem="IMPORTACAO",
+        ))
+        criadas += 1
+    db.commit()
+    return criadas

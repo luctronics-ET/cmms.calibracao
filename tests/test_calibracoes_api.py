@@ -109,3 +109,33 @@ def test_delete_calibracao_inexistente_404(client):
     iid = _id_primeiro(client)
     r = client.delete(f"/api/v1/instrumentos/{iid}/calibracoes/99999")
     assert r.status_code == 404
+
+
+def test_backfill_cria_calibracao_origem_e_e_idempotente(client):
+    # A fixture cria A-1 com data_validade=2020-01-01 e sem data_ultima_calibracao.
+    # Damos a um instrumento uma data_ultima_calibracao para o backfill agir.
+    from backend.db import get_db
+    from backend import models, servico
+    from backend.main import app
+    from datetime import date as _date
+
+    gen = app.dependency_overrides[get_db]()
+    db = next(gen)
+    inst = db.query(models.Instrumento).filter_by(codigo_interno="A-2").first()
+    inst.data_ultima_calibracao = _date(2026, 1, 5)
+    inst.organizacao_calibradora = "Lab Origem"
+    db.commit()
+
+    n1 = servico.backfill_calibracoes_origem(db)
+    assert n1 == 1
+    cals = db.query(models.Calibracao).filter_by(instrumento_id=inst.id).all()
+    assert len(cals) == 1
+    assert cals[0].origem == "IMPORTACAO"
+    assert cals[0].laboratorio == "Lab Origem"
+    assert cals[0].resultado == models.Resultado.APROVADO
+
+    # idempotente: rodar de novo não cria outra
+    n2 = servico.backfill_calibracoes_origem(db)
+    assert n2 == 0
+    assert db.query(models.Calibracao).filter_by(instrumento_id=inst.id).count() == 1
+    db.close()
