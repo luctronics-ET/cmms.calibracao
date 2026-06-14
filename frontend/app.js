@@ -131,6 +131,24 @@ SDK.patch = async (path, body) => {
   return r.json();
 };
 
+// ── Exportação (download de arquivo) ────────────────────────────────────────
+SDK.exportar = async (ids, formato) => {
+  const r = await fetch(API + "/instrumentos/export", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids, formato }),
+  });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  const blob = await r.blob();
+  const cd = r.headers.get("Content-Disposition") || "";
+  const m = cd.match(/filename="?([^"]+)"?/);
+  const nome = m ? m[1] : `inventario.${formato}`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = nome;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+};
+
 // ── Render compartilhado da ficha (página + modal) ──────────────────────────
 function renderFichaResumo(i) {
   const div = i.divergencia_flag ? ' <span class="bdg amber">divergência flag×data</span>' : "";
