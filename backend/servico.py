@@ -4,8 +4,14 @@ from datetime import date
 from sqlalchemy.orm import Session
 from backend.calibracao import calcular_status, derivar_de_calibracoes
 from backend.criticidade import calcular_igp
-from backend.models import Instrumento, Calibracao, Laboratorio, StatusOperacional, Resultado
-from backend.schemas import InstrumentoOut, CalibracaoOut, LaboratorioOut
+from backend.contratos_calc import saldo_item, status_saldo
+from backend.models import (
+    Instrumento, Calibracao, Laboratorio, StatusOperacional, Resultado,
+    Contrato, ItemContrato,
+)
+from backend.schemas import (
+    InstrumentoOut, CalibracaoOut, LaboratorioOut, ContratoOut, ItemContratoOut,
+)
 
 
 def instrumento_para_out(inst: Instrumento, hoje: date) -> InstrumentoOut:
@@ -143,3 +149,46 @@ def backfill_calibracoes_origem(db: Session) -> int:
         criadas += 1
     db.commit()
     return criadas
+
+
+def item_contrato_para_out(item: ItemContrato) -> ItemContratoOut:
+    saldo, valor_saldo = saldo_item(item.quantidade, item.usado,
+                                    float(item.valor_unitario) if item.valor_unitario is not None else None)
+    return ItemContratoOut(
+        id=item.id,
+        contrato_id=item.contrato_id,
+        numero=item.numero,
+        descricao=item.descricao,
+        quantidade=item.quantidade,
+        valor_unitario=float(item.valor_unitario) if item.valor_unitario is not None else None,
+        usado=item.usado,
+        observacoes=item.observacoes,
+        saldo=saldo,
+        valor_saldo=valor_saldo,
+    )
+
+
+def contrato_para_out(contrato: Contrato, hoje: date) -> ContratoOut:
+    itens = [item_contrato_para_out(i) for i in contrato.itens]
+    valor_saldo_total = sum(i.valor_saldo for i in itens)
+    vt = float(contrato.valor_total) if contrato.valor_total is not None else None
+    st = calcular_status(contrato.vigencia_fim, None, hoje)
+    saldo_percent = (valor_saldo_total / vt) if vt else None
+    return ContratoOut(
+        id=contrato.id,
+        numero=contrato.numero,
+        tipo=contrato.tipo.value,
+        fornecedor=contrato.fornecedor,
+        objeto=contrato.objeto,
+        vigencia_inicio=contrato.vigencia_inicio,
+        vigencia_fim=contrato.vigencia_fim,
+        valor_total=vt,
+        ativo=contrato.ativo,
+        observacoes=contrato.observacoes,
+        itens=itens,
+        status_vigencia=st.status.value,
+        dias_restantes=st.dias_restantes,
+        valor_saldo_total=valor_saldo_total,
+        saldo_percent=saldo_percent,
+        status_saldo=status_saldo(valor_saldo_total, vt),
+    )
