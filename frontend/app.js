@@ -73,6 +73,7 @@ const NAV = [
   ["calibracao.html", "clipboard-check", "Calibrações"],
   ["laboratorios.html", "building", "Laboratórios"],
   ["contratos.html", "file-earmark-text", "Contratos"],
+  ["catalogo.html", "tags", "Catálogo"],
   ["cadastro.html", "plus-lg", "Novo"],
   ["alertas.html", "bell", "Alertas"],
   ["importar.html", "upload", "Importar"],
