@@ -143,6 +143,9 @@ class Calibracao(Base):
     instrumento_id: Mapped[int] = mapped_column(
         ForeignKey("instrumento.id", ondelete="CASCADE"), index=True
     )
+    laboratorio_id: Mapped[int | None] = mapped_column(
+        ForeignKey("laboratorio.id", ondelete="SET NULL"), index=True
+    )
     data_calibracao: Mapped[Date] = mapped_column(Date)
     data_validade: Mapped[Date | None] = mapped_column(Date)
     ciclo_meses: Mapped[int] = mapped_column(Integer, default=12)
@@ -158,3 +161,25 @@ class Calibracao(Base):
     origem: Mapped[str] = mapped_column(String, default="MANUAL")
     observacoes: Mapped[str | None] = mapped_column(String)
     criado_em: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class Laboratorio(Base):
+    __tablename__ = "laboratorio"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    razao_social: Mapped[str] = mapped_column(String)
+    cnpj: Mapped[str | None] = mapped_column(String)
+    endereco: Mapped[str | None] = mapped_column(String)
+    contato: Mapped[str | None] = mapped_column(String)
+    telefone: Mapped[str | None] = mapped_column(String)
+    email: Mapped[str | None] = mapped_column(String)
+    numero_cgcre: Mapped[str | None] = mapped_column(String)
+    acreditado_rbc: Mapped[bool] = mapped_column(Boolean, default=False)
+    escopo: Mapped[str | None] = mapped_column(String)
+    acreditacao_validade: Mapped[Date | None] = mapped_column(Date)
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+    observacoes: Mapped[str | None] = mapped_column(String)
+    criado_em: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    atualizado_em: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
