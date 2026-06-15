@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from backend.db import get_db
-from backend.models import Instrumento, Calibracao, Resultado
+from backend.models import Instrumento, Calibracao, Resultado, Laboratorio
 from backend.servico import instrumento_para_out, calibracao_para_out, aplicar_derivados
 from backend.calibracao import adicionar_meses
 from backend.schemas import CalibracaoIn, ListaCalibracoes, RegistroCalibracaoOut, CalibracaoOut, InstrumentoOut
@@ -37,20 +37,30 @@ def listar(inst_id: int, db: Session = Depends(get_db)):
 def registrar(inst_id: int, dados: CalibracaoIn, db: Session = Depends(get_db)):
     inst = _get_inst(db, inst_id)
     ciclo = inst.ciclo_meses or 12
+    lab_id = dados.laboratorio_id
+    lab_nome, lab_cnpj, lab_cgcre, lab_rbc = (
+        dados.laboratorio, dados.laboratorio_cnpj, dados.numero_cgcre, dados.acreditacao_rbc)
+    if lab_id is not None:
+        lab = db.get(Laboratorio, lab_id)
+        if not lab:
+            raise HTTPException(status_code=404, detail="Laboratório não encontrado")
+        lab_nome, lab_cnpj, lab_cgcre, lab_rbc = (
+            lab.razao_social, lab.cnpj, lab.numero_cgcre, lab.acreditado_rbc)
     if dados.resultado == "REPROVADO":
         validade = None
     else:
         validade = adicionar_meses(dados.data_calibracao, ciclo)
     cal = Calibracao(
         instrumento_id=inst_id,
+        laboratorio_id=lab_id,
         data_calibracao=dados.data_calibracao,
         data_validade=validade,
         ciclo_meses=ciclo,
         resultado=Resultado(dados.resultado),
-        laboratorio=dados.laboratorio,
-        laboratorio_cnpj=dados.laboratorio_cnpj,
-        acreditacao_rbc=dados.acreditacao_rbc,
-        numero_cgcre=dados.numero_cgcre,
+        laboratorio=lab_nome,
+        laboratorio_cnpj=lab_cnpj,
+        acreditacao_rbc=lab_rbc,
+        numero_cgcre=lab_cgcre,
         numero_certificado=dados.numero_certificado,
         custo=dados.custo,
         responsavel=dados.responsavel,
