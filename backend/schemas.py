@@ -330,3 +330,32 @@ class ContratoOut(BaseModel):
 class ListaContratos(BaseModel):
     total: int
     itens: list[ContratoOut]
+
+
+class CatalogoPrecoIn(BaseModel):
+    tipo_id: int
+    fornecedor: str | None = None
+    preco: float | None = None
+    item_contrato_id: int | None = None
+    ativo: bool = True
+    observacoes: str | None = None
+
+
+class CatalogoPrecoOut(BaseModel):
+    id: int
+    tipo_id: int
+    fornecedor: str | None
+    preco: float | None
+    item_contrato_id: int | None
+    ativo: bool
+    observacoes: str | None
+    # derivados
+    tipo_nome: str | None
+    item_numero: str | None
+    contrato_id: int | None
+    contrato_numero: str | None
+
+
+class ListaCatalogo(BaseModel):
+    total: int
+    itens: list[CatalogoPrecoOut]
