@@ -191,6 +191,7 @@ class ExportRequest(BaseModel):
 class CalibracaoIn(BaseModel):
     """Entrada de registro de calibração. validade/ciclo/status são derivados no servidor."""
     data_calibracao: date
+    laboratorio_id: int | None = None
     resultado: Literal["APROVADO", "APROVADO_COM_RESTRICOES", "REPROVADO"] = "APROVADO"
     laboratorio: str | None = None
     laboratorio_cnpj: str | None = None
@@ -205,6 +206,7 @@ class CalibracaoIn(BaseModel):
 class CalibracaoOut(BaseModel):
     id: int
     instrumento_id: int
+    laboratorio_id: int | None
     data_calibracao: date
     data_validade: date | None
     ciclo_meses: int
@@ -229,3 +231,42 @@ class ListaCalibracoes(BaseModel):
 class RegistroCalibracaoOut(BaseModel):
     instrumento: InstrumentoOut
     calibracao: CalibracaoOut
+
+
+class LaboratorioIn(BaseModel):
+    razao_social: str
+    cnpj: str | None = None
+    endereco: str | None = None
+    contato: str | None = None
+    telefone: str | None = None
+    email: str | None = None
+    numero_cgcre: str | None = None
+    acreditado_rbc: bool = False
+    escopo: str | None = None
+    acreditacao_validade: date | None = None
+    ativo: bool = True
+    observacoes: str | None = None
+
+
+class LaboratorioOut(BaseModel):
+    id: int
+    razao_social: str
+    cnpj: str | None
+    endereco: str | None
+    contato: str | None
+    telefone: str | None
+    email: str | None
+    numero_cgcre: str | None
+    acreditado_rbc: bool
+    escopo: str | None
+    acreditacao_validade: date | None
+    ativo: bool
+    observacoes: str | None
+    # derivados
+    status_acreditacao: str
+    dias_restantes: int | None
+
+
+class ListaLaboratorios(BaseModel):
+    total: int
+    itens: list[LaboratorioOut]
