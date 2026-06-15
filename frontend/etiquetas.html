@@ -1,0 +1,94 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SisCalib · Etiquetas</title>
+<link rel="stylesheet" href="vendor/fonts.css">
+<link rel="stylesheet" href="vendor/bootstrap-icons.min.css">
+<link rel="stylesheet" href="vendor/xcmasm-govbr.css">
+<link rel="stylesheet" href="siscalib.css">
+<script src="vendor/qrcode-generator.min.js"></script>
+<style>
+  .et-main{padding:18px 16px 40px}
+  .et-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+  .et-toolbar h1{font-size:20px;margin:0 12px 0 0}
+  .etiquetas{display:flex;flex-wrap:wrap;gap:8px}
+  .etiqueta{
+    width:70mm;height:40mm;box-sizing:border-box;
+    border:1px solid var(--bd);border-radius:6px;padding:3mm;
+    display:flex;gap:3mm;align-items:stretch;overflow:hidden;
+    background:var(--sf);color:var(--tx);page-break-inside:avoid;break-inside:avoid;
+  }
+  .et-info{flex:1;min-width:0;display:flex;flex-direction:column}
+  .et-codigo{font-family:"Roboto Mono",ui-monospace,monospace;font-size:18px;font-weight:700;line-height:1.05;word-break:break-word}
+  .et-patrim{font-size:10px;color:var(--tx3);margin-top:1px}
+  .et-equip{font-size:11px;margin-top:4px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .et-foot{margin-top:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:10px}
+  .et-qr{width:90px;height:90px;flex:0 0 90px;align-self:center;display:flex;align-items:center;justify-content:center}
+  .et-qr svg,.et-qr img{width:90px;height:90px;display:block}
+  .etiqueta.erro{align-items:center;justify-content:center;color:var(--red);font-size:12px;text-align:center}
+  @media print {
+    .naoimprime{display:none !important}
+    .sb{display:none !important}
+    body,.et-main{margin:0;padding:0;background:#fff}
+    .etiquetas{gap:2mm}
+    .etiqueta{
+      background:#fff !important;color:#000 !important;border:1px solid #000;
+      page-break-inside:avoid;break-inside:avoid;
+    }
+    .et-patrim,.et-foot,.et-equip{color:#000 !important}
+    .et-qr svg,.et-qr img{background:#fff}
+  }
+</style>
+</head><body class="app">
+<script src="app.js"></script>
+<main class="et-main">
+  <div class="et-toolbar naoimprime">
+    <h1>Etiquetas</h1>
+    <button class="btn" id="btnImprimir"><i class="bi bi-printer"></i> Imprimir / Salvar PDF</button>
+    <a class="btn ghost" href="inventario.html">&larr; Inventário</a>
+  </div>
+  <div class="etiquetas" id="grade"><p class="muted naoimprime">Carregando…</p></div>
+</main>
+<script>
+document.getElementById("btnImprimir").addEventListener("click", () => window.print());
+
+(async () => {
+  const grade = document.getElementById("grade");
+  const ids = (new URLSearchParams(location.search).get("ids") || "")
+    .split(",").map(s => parseInt(s.trim(), 10)).filter(n => Number.isInteger(n) && n > 0);
+  grade.innerHTML = "";
+  if (!ids.length) {
+    grade.innerHTML = `<p class="muted">Nenhum instrumento informado.</p>`;
+    return;
+  }
+  for (const id of ids) {
+    const url = `${location.origin}/publica.html?id=${id}`;
+    let i;
+    try { i = await SDK.get("/publico/instrumentos/" + id); }
+    catch (err) {
+      const erro = document.createElement("div");
+      erro.className = "etiqueta erro";
+      erro.dataset.url = url;
+      erro.textContent = `Instrumento ${id} não encontrado`;
+      grade.appendChild(erro);
+      continue;
+    }
+    const card = document.createElement("div");
+    card.className = "etiqueta";
+    card.dataset.url = url;
+    card.innerHTML = `
+      <div class="et-info">
+        <div class="et-codigo">${esc(i.codigo_interno) || esc(i.codigo_patrimonial) || "(sem código)"}</div>
+        ${i.codigo_patrimonial ? `<div class="et-patrim">Pat: ${esc(i.codigo_patrimonial)}</div>` : ""}
+        <div class="et-equip">${esc(i.equipamento) || ""}</div>
+        <div class="et-foot">${badgeStatus(i.status)} <span>Val: ${fmtData(i.data_validade)}</span></div>
+      </div>
+      <div class="et-qr"></div>`;
+    grade.appendChild(card);
+    const qr = qrcode(0, "M");
+    qr.addData(url);
+    qr.make();
+    card.querySelector(".et-qr").innerHTML = qr.createSvgTag({ cellSize: 3, margin: 0, scalable: true });
+  }
+})();
+</script>
+</body></html>
