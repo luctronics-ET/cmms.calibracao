@@ -224,15 +224,54 @@ function renderFichaResumo(i) {
   ];
   const tabela = linhas.map(([k, v]) =>
     `<tr><th style="width:200px">${k}</th><td>${esc(v) || "—"}</td></tr>`).join("");
-  const anexos =
-    (i.foto_path ? `<a href="${i.foto_path}" target="_blank">Foto</a> ` : '<span class="muted">Sem foto</span> ') +
-    (i.manual_path ? ` · <a href="${i.manual_path}" target="_blank">Manual (PDF)</a>` : ' · <span class="muted">Sem manual</span>');
   return `<div style="margin-bottom:12px">${status}</div>
     <div class="twrap"><table><tbody>${tabela}</tbody></table></div>
-    <div style="margin-top:12px"><b>Anexos</b><div style="margin-top:6px">${anexos}</div></div>
+    <div style="margin-top:12px"><b>Anexos</b>
+      <div id="secaoAnexos" data-inst="${i.id}" style="margin-top:6px"></div></div>
     <div style="margin-top:16px"><b>Calibrações</b>
       <span class="muted" style="margin-left:8px">Ciclo: ${i.ciclo_meses ?? 12} meses</span>
       <div id="secaoCalib" data-inst="${i.id}" style="margin-top:8px"></div></div>`;
+}
+
+// ── Anexos (foto + manual PDF) — upload na ficha ────────────────────────────
+async function montarSecaoAnexos(instId, onChanged) {
+  const box = document.getElementById("secaoAnexos");
+  if (!box) return;
+  let i;
+  try { i = await SDK.get("/instrumentos/" + instId); }
+  catch (err) { box.innerHTML = `<span class="sev-erro">${esc(err.message)}</span>`; return; }
+  const linkFoto = i.foto_path
+    ? `<a href="${i.foto_path}" target="_blank">ver foto</a>` : '<span class="muted">sem foto</span>';
+  const linkManual = i.manual_path
+    ? `<a href="${i.manual_path}" target="_blank">ver manual (PDF)</a>` : '<span class="muted">sem manual</span>';
+  box.innerHTML = `
+    <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+      <span><b>Foto:</b> ${linkFoto}</span>
+      <label class="btn ghost" style="cursor:pointer">Enviar foto<input type="file" accept="image/*" hidden data-tipo="foto"></label>
+    </div>
+    <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+      <span><b>Manual:</b> ${linkManual}</span>
+      <label class="btn ghost" style="cursor:pointer">Enviar manual (PDF)<input type="file" accept=".pdf,application/pdf" hidden data-tipo="manual"></label>
+    </div>
+    <div class="sev-erro" id="anexoErro" style="margin-top:6px"></div>`;
+  box.querySelectorAll('input[type=file]').forEach(inp => {
+    inp.onchange = async () => {
+      const arq = inp.files[0];
+      if (!arq) return;
+      const tipo = inp.dataset.tipo;
+      const erro = document.getElementById("anexoErro");
+      erro.textContent = "Enviando…";
+      try {
+        await SDK.upload(`/instrumentos/${instId}/${tipo}`, arq);
+        await montarSecaoAnexos(instId, onChanged);
+        if (typeof onChanged === "function") await onChanged();
+      } catch (err) {
+        erro.textContent = err.message.includes("415")
+          ? (tipo === "foto" ? "Envie um arquivo de imagem." : "Envie um arquivo PDF.")
+          : "Falha no envio: " + err.message;
+      }
+    };
+  });
 }
 
 // ── Calibrações (histórico + form + upload) ─────────────────────────────────

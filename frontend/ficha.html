@@ -23,6 +23,7 @@ montarShell("");
     document.getElementById("titulo").textContent =
       `${i.codigo_interno || i.codigo_patrimonial || "(sem código)"} — ${i.equipamento || ""}`;
     document.getElementById("corpo").innerHTML = renderFichaResumo(i);
+    montarSecaoAnexos(i.id, pintar);
     montarSecaoCalibracoes(i.id, pintar);
   }
   await pintar();

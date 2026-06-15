@@ -218,6 +218,7 @@ document.querySelector("#tab tbody").addEventListener("click", async (e) => {
     renderFichaResumo(i),
     `<a class="btn ghost" href="ficha.html?id=${i.id}">Ficha completa</a>
      <a class="btn" href="cadastro.html?id=${i.id}">Editar</a>`);
+  montarSecaoAnexos(i.id, () => recarregar());
   // após nova/excluída calibração: recarrega a lista para refletir validade/status
   montarSecaoCalibracoes(i.id, () => recarregar());
 });
