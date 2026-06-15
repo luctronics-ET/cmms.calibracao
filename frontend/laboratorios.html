@@ -1,0 +1,134 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SisCalib · Laboratórios</title>
+<link rel="stylesheet" href="vendor/fonts.css">
+<link rel="stylesheet" href="vendor/bootstrap-icons.min.css">
+<link rel="stylesheet" href="vendor/xcmasm-govbr.css">
+<link rel="stylesheet" href="siscalib.css">
+<style>
+.grid2-lab{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.lab-form .fld{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.lab-form .fld label{font-size:12px;color:var(--tx2)}
+.lab-form .fld.req label::after{content:" *";color:var(--red)}
+.lab-form .fld.chk{flex-direction:row;align-items:center;gap:8px}
+.lab-form .fld.chk label{font-size:13px;color:var(--tx)}
+</style>
+</head><body class="app">
+<script src="app.js"></script>
+<main class="main">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+    <h1 style="margin:0">Laboratórios</h1>
+    <button class="btn" id="btnNovo"><i class="bi bi-plus-lg"></i> Novo laboratório</button>
+  </div>
+  <div class="muted" id="cont" style="margin:10px 0 8px"></div>
+  <div class="twrap"><table id="tab"><thead><tr>
+    <th>Razão social</th><th>CNPJ</th><th>CGCRE</th><th>Acreditação</th>
+    <th>Escopo</th><th>Ações</th></tr></thead><tbody></tbody></table></div>
+</main>
+<script>
+montarShell("laboratorios.html");
+const cont = document.getElementById("cont");
+const tbody = document.querySelector("#tab tbody");
+
+async function carregar() {
+  let dados;
+  try { dados = await SDK.get("/laboratorios"); }
+  catch (err) {
+    tbody.innerHTML = `<tr><td colspan="6" class="sev-erro">Falha ao carregar: ${esc(err.message)}</td></tr>`;
+    return;
+  }
+  cont.textContent = `${dados.total} laboratório(s)`;
+  tbody.innerHTML = dados.itens.map(l => `
+    <tr>
+      <td>${esc(l.razao_social)}</td>
+      <td>${esc(l.cnpj) || "—"}</td>
+      <td>${esc(l.numero_cgcre) || "—"}</td>
+      <td>${fmtData(l.acreditacao_validade)} ${badgeStatus(l.status_acreditacao)}</td>
+      <td>${esc(l.escopo) || "—"}</td>
+      <td>
+        <button class="btn ghost lab-edit" data-id="${l.id}" style="padding:2px 8px">Editar</button>
+        <button class="btn ghost lab-del" data-id="${l.id}" style="padding:2px 8px">Excluir</button>
+      </td>
+    </tr>`).join("") || `<tr><td colspan="6" class="muted">Nenhum laboratório cadastrado.</td></tr>`;
+
+  tbody.querySelectorAll(".lab-edit").forEach(b => b.onclick = () => abrirForm(Number(b.dataset.id)));
+  tbody.querySelectorAll(".lab-del").forEach(b => b.onclick = async () => {
+    if (!confirm("Excluir este laboratório?")) return;
+    b.disabled = true;
+    try { await SDK.del("/laboratorios/" + b.dataset.id); await carregar(); }
+    catch (err) { alert("Falha ao excluir: " + err.message); b.disabled = false; }
+  });
+}
+
+function formHtml(l) {
+  l = l || {};
+  return `<form class="lab-form" id="labForm">
+    <div class="fld req"><label>Razão social</label><input name="razao_social" value="${esc(l.razao_social)}" required></div>
+    <div class="grid2-lab">
+      <div class="fld"><label>CNPJ</label><input name="cnpj" value="${esc(l.cnpj)}"></div>
+      <div class="fld"><label>Nº CGCRE</label><input name="numero_cgcre" value="${esc(l.numero_cgcre)}"></div>
+      <div class="fld"><label>Contato</label><input name="contato" value="${esc(l.contato)}"></div>
+      <div class="fld"><label>Telefone</label><input name="telefone" value="${esc(l.telefone)}"></div>
+      <div class="fld"><label>E-mail</label><input name="email" type="email" value="${esc(l.email)}"></div>
+      <div class="fld"><label>Validade da acreditação</label><input name="acreditacao_validade" type="date" value="${esc(l.acreditacao_validade)}"></div>
+    </div>
+    <div class="fld"><label>Endereço</label><input name="endereco" value="${esc(l.endereco)}"></div>
+    <div class="fld"><label>Escopo</label><textarea name="escopo" rows="2">${esc(l.escopo)}</textarea></div>
+    <div class="fld"><label>Observações</label><textarea name="observacoes" rows="2">${esc(l.observacoes)}</textarea></div>
+    <div class="grid2-lab">
+      <div class="fld chk"><input type="checkbox" name="acreditado_rbc" id="labRbc" ${l.acreditado_rbc ? "checked" : ""}><label for="labRbc">Acreditado RBC</label></div>
+      <div class="fld chk"><input type="checkbox" name="ativo" id="labAtivo" ${l.ativo === false ? "" : "checked"}><label for="labAtivo">Ativo</label></div>
+    </div>
+    <span class="sev-erro lab-erro"></span>
+  </form>`;
+}
+
+async function abrirForm(id) {
+  let lab = null;
+  if (id != null) {
+    try { lab = await SDK.get("/laboratorios/" + id); }
+    catch (err) { alert("Falha ao carregar laboratório: " + err.message); return; }
+  }
+  const titulo = id != null ? "Editar laboratório" : "Novo laboratório";
+  const ov = abrirModal(titulo, formHtml(lab),
+    `<button class="btn ghost" id="labCancel" type="button">Cancelar</button>
+     <button class="btn" id="labSalvar" type="button">Salvar</button>`);
+  const form = ov.querySelector("#labForm");
+  const erro = ov.querySelector(".lab-erro");
+  ov.querySelector("#labCancel").onclick = fecharModal;
+  ov.querySelector("#labSalvar").onclick = async () => {
+    erro.textContent = "";
+    if (!form.razao_social.value.trim()) { erro.textContent = "Razão social é obrigatória."; return; }
+    // PUT é substituição total: enviar TODOS os campos.
+    const body = {
+      razao_social: form.razao_social.value.trim(),
+      cnpj: form.cnpj.value.trim() || null,
+      endereco: form.endereco.value.trim() || null,
+      contato: form.contato.value.trim() || null,
+      telefone: form.telefone.value.trim() || null,
+      email: form.email.value.trim() || null,
+      numero_cgcre: form.numero_cgcre.value.trim() || null,
+      acreditado_rbc: form.acreditado_rbc.checked,
+      escopo: form.escopo.value.trim() || null,
+      acreditacao_validade: form.acreditacao_validade.value || null,
+      ativo: form.ativo.checked,
+      observacoes: form.observacoes.value.trim() || null,
+    };
+    const btn = ov.querySelector("#labSalvar");
+    btn.disabled = true;
+    try {
+      if (id != null) await SDK.put("/laboratorios/" + id, body);
+      else await SDK.post("/laboratorios", body);
+      fecharModal();
+      await carregar();
+    } catch (err) {
+      erro.textContent = "Falha ao salvar: " + err.message;
+      btn.disabled = false;
+    }
+  };
+}
+
+document.getElementById("btnNovo").onclick = () => abrirForm(null);
+carregar();
+</script>
+</body></html>

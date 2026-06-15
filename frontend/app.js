@@ -71,6 +71,7 @@ const NAV = [
   ["index.html", "speedometer2", "Dashboard"],
   ["inventario.html", "list-ul", "Inventário"],
   ["calibracao.html", "clipboard-check", "Calibrações"],
+  ["laboratorios.html", "building", "Laboratórios"],
   ["cadastro.html", "plus-lg", "Novo"],
   ["alertas.html", "bell", "Alertas"],
   ["importar.html", "upload", "Importar"],
@@ -162,7 +163,9 @@ function abrirModal(titulo, conteudoHtml, acoesHtml) {
 SDK.del = async (path) => {
   const r = await fetch(API + path, { method: "DELETE" });
   if (!r.ok) throw new Error("HTTP " + r.status);
-  return r.json();
+  if (r.status === 204) return null;            // No Content (ex.: laboratórios)
+  const txt = await r.text();
+  return txt ? JSON.parse(txt) : null;
 };
 
 // ── PATCH parcial ───────────────────────────────────────────────────────────
@@ -287,13 +290,15 @@ function renderFormCalibracao(instId, onSaved) {
   const form = document.createElement("form");
   form.className = "calib-form";
   form.innerHTML = `
+    <div class="fld"><label>Laboratório cadastrado</label>
+      <select id="calibLab"><option value="">— laboratório (opcional) —</option></select></div>
     <div class="grid2-calib">
       <div class="fld req"><label>Data da calibração</label><input name="data_calibracao" type="date" required></div>
       <div class="fld"><label>Resultado</label><select name="resultado">
         <option value="APROVADO">Aprovado</option>
         <option value="APROVADO_COM_RESTRICOES">Aprovado c/ restrições</option>
         <option value="REPROVADO">Reprovado</option></select></div>
-      <div class="fld"><label>Laboratório</label><input name="laboratorio"></div>
+      <div class="fld"><label>Laboratório (texto livre)</label><input name="laboratorio"></div>
       <div class="fld"><label>Nº certificado</label><input name="numero_certificado"></div>
       <div class="fld"><label>Custo</label><input name="custo" type="number" step="any"></div>
       <div class="fld"><label>Responsável</label><input name="responsavel"></div>
@@ -305,6 +310,14 @@ function renderFormCalibracao(instId, onSaved) {
       <span class="sev-erro calib-erro"></span>
     </div>`;
   const erro = form.querySelector(".calib-erro");
+  const selLab = form.querySelector("#calibLab");
+  // Carrega a lista de laboratórios de forma assíncrona ao montar o form.
+  (async () => {
+    try {
+      const dados = await SDK.get("/laboratorios");
+      for (const l of dados.itens) selLab.add(new Option(l.razao_social, l.id));
+    } catch (err) { /* lista vazia / falha: mantém só a opção vazia */ }
+  })();
   form.onsubmit = async (e) => {
     e.preventDefault();
     erro.textContent = "";
@@ -314,6 +327,7 @@ function renderFormCalibracao(instId, onSaved) {
       if (k === "arquivo" || v === "") continue;
       body[k] = k === "custo" ? parseFloat(v) : v;
     }
+    if (selLab.value) body.laboratorio_id = Number(selLab.value);
     const btn = form.querySelector('button[type="submit"]');
     btn.disabled = true;
     try {
