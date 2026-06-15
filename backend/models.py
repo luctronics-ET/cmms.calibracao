@@ -29,6 +29,12 @@ class Resultado(str, enum.Enum):
     REPROVADO = "REPROVADO"
 
 
+class ContratoTipo(str, enum.Enum):
+    ATA = "ATA"
+    CONTRATO = "CONTRATO"
+    CMS = "CMS"
+
+
 class FamiliaMetrologica(Base):
     __tablename__ = "familia_metrologica"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -183,3 +189,40 @@ class Laboratorio(Base):
     atualizado_em: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
     )
+
+
+class Contrato(Base):
+    __tablename__ = "contrato"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    numero: Mapped[str] = mapped_column(String)
+    tipo: Mapped[ContratoTipo] = mapped_column(Enum(ContratoTipo), default=ContratoTipo.ATA)
+    fornecedor: Mapped[str | None] = mapped_column(String)
+    objeto: Mapped[str | None] = mapped_column(String)
+    vigencia_inicio: Mapped[Date | None] = mapped_column(Date)
+    vigencia_fim: Mapped[Date | None] = mapped_column(Date)
+    valor_total: Mapped[float | None] = mapped_column(Numeric(14, 2))
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+    observacoes: Mapped[str | None] = mapped_column(String)
+    criado_em: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    atualizado_em: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+    itens: Mapped[list["ItemContrato"]] = relationship(
+        cascade="all, delete-orphan", order_by="ItemContrato.id"
+    )
+
+
+class ItemContrato(Base):
+    __tablename__ = "item_contrato"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    contrato_id: Mapped[int] = mapped_column(
+        ForeignKey("contrato.id", ondelete="CASCADE"), index=True
+    )
+    numero: Mapped[str | None] = mapped_column(String)
+    descricao: Mapped[str | None] = mapped_column(String)
+    quantidade: Mapped[int] = mapped_column(Integer, default=0)
+    valor_unitario: Mapped[float | None] = mapped_column(Numeric(12, 2))
+    usado: Mapped[int] = mapped_column(Integer, default=0)
+    observacoes: Mapped[str | None] = mapped_column(String)
