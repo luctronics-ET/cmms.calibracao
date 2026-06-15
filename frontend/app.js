@@ -1,6 +1,35 @@
 // SisCalib — SDK + helpers de UI (vanilla). Inspirado em xcmasm-sdk.js.
 const API = "/api/v1";
 
+// ── Tema (claro/escuro) ─────────────────────────────────────────────────────
+const THEME_KEY = "siscalib-theme";
+function temaInicial() {
+  const s = localStorage.getItem(THEME_KEY);
+  if (s === "light" || s === "dark") return s;
+  return window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches
+    ? "light" : "dark";
+}
+function aplicarTema(t) { document.documentElement.setAttribute("data-theme", t); }
+function temaAtual() {
+  return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+}
+function atualizarIconeTema() {
+  const b = document.getElementById("themeToggle");
+  if (!b) return;
+  const claro = temaAtual() === "light";
+  b.innerHTML = `<i class="bi bi-${claro ? "moon-stars" : "sun"}"></i>`;
+  b.title = claro ? "Mudar para modo escuro" : "Mudar para modo claro";
+  b.setAttribute("aria-label", b.title);
+}
+function alternarTema() {
+  const novo = temaAtual() === "light" ? "dark" : "light";
+  localStorage.setItem(THEME_KEY, novo);
+  aplicarTema(novo);
+  atualizarIconeTema();
+}
+// aplica o tema o quanto antes (app.js é o 1º script do body) → evita flash
+aplicarTema(temaInicial());
+
 const SDK = {
   async get(path, params) {
     const url = new URL(API + path, location.origin);
@@ -56,6 +85,13 @@ function montarShell(ativo) {
       <div class="sb-logo"><img src="vendor/Logo_of_the_Brazilian_Navy.svg.png" alt="MB"> SisCalib</div>
       ${links}
     </div>`);
+  const main = document.querySelector(".main");
+  if (main) {
+    main.insertAdjacentHTML("afterbegin",
+      `<div class="topbar"><button id="themeToggle" class="theme-toggle" type="button"></button></div>`);
+    main.querySelector("#themeToggle").addEventListener("click", alternarTema);
+    atualizarIconeTema();
+  }
 }
 
 // ── Domínios e IGP (cadastro) ───────────────────────────────────────────────
