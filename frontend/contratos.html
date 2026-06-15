@@ -1,0 +1,254 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SisCalib · Contratos</title>
+<link rel="stylesheet" href="vendor/fonts.css">
+<link rel="stylesheet" href="vendor/bootstrap-icons.min.css">
+<link rel="stylesheet" href="vendor/xcmasm-govbr.css">
+<link rel="stylesheet" href="siscalib.css">
+<style>
+.grid2-ct{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ct-form .fld{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.ct-form .fld label{font-size:12px;color:var(--tx2)}
+.ct-form .fld.req label::after{content:" *";color:var(--red)}
+.ct-form .fld.chk{flex-direction:row;align-items:center;gap:8px}
+.ct-form .fld.chk label{font-size:13px;color:var(--tx)}
+.ct-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px 16px;margin-bottom:14px}
+.ct-meta .l{font-size:11px;color:var(--tx2);text-transform:uppercase;letter-spacing:.04em}
+.ct-meta .v{font-size:13px}
+</style>
+</head><body class="app">
+<script src="app.js"></script>
+<main class="main">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+    <h1 style="margin:0">Contratos &amp; Saldo da ATA</h1>
+    <button class="btn" id="btnNovo"><i class="bi bi-plus-lg"></i> Novo contrato</button>
+  </div>
+  <div class="muted" id="cont" style="margin:10px 0 8px"></div>
+  <div class="twrap"><table id="tab"><thead><tr>
+    <th>Número</th><th>Tipo</th><th>Fornecedor</th><th>Vigência</th>
+    <th>Valor total</th><th>Saldo</th><th>Ações</th></tr></thead><tbody></tbody></table></div>
+</main>
+<script>
+montarShell("contratos.html");
+const cont = document.getElementById("cont");
+const tbody = document.querySelector("#tab tbody");
+
+function money(n) {
+  return "R$ " + Number(n || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+async function carregar() {
+  let dados;
+  try { dados = await SDK.get("/contratos"); }
+  catch (err) {
+    tbody.innerHTML = `<tr><td colspan="7" class="sev-erro">Falha ao carregar: ${esc(err.message)}</td></tr>`;
+    return;
+  }
+  cont.textContent = `${dados.total} contrato(s)`;
+  tbody.innerHTML = dados.itens.map(c => `
+    <tr>
+      <td>${esc(c.numero)}</td>
+      <td>${esc(c.tipo)}</td>
+      <td>${esc(c.fornecedor) || "—"}</td>
+      <td>${fmtData(c.vigencia_fim)} ${badgeStatus(c.status_vigencia)}</td>
+      <td>${money(c.valor_total)}</td>
+      <td>${money(c.valor_saldo_total)} <span class="bdg saldo-${esc(c.status_saldo)}">${esc(c.status_saldo)}</span></td>
+      <td>
+        <button class="btn ghost ct-open" data-id="${c.id}" style="padding:2px 8px">Abrir</button>
+        <button class="btn ghost ct-edit" data-id="${c.id}" style="padding:2px 8px">Editar</button>
+        <button class="btn ghost ct-del" data-id="${c.id}" style="padding:2px 8px">Excluir</button>
+      </td>
+    </tr>`).join("") || `<tr><td colspan="7" class="muted">Nenhum contrato cadastrado.</td></tr>`;
+
+  tbody.querySelectorAll(".ct-open").forEach(b => b.onclick = () => abrirDetalhe(Number(b.dataset.id)));
+  tbody.querySelectorAll(".ct-edit").forEach(b => b.onclick = () => abrirForm(Number(b.dataset.id)));
+  tbody.querySelectorAll(".ct-del").forEach(b => b.onclick = async () => {
+    if (!confirm("Excluir este contrato?")) return;
+    b.disabled = true;
+    try { await SDK.del("/contratos/" + b.dataset.id); await carregar(); }
+    catch (err) { alert("Falha ao excluir: " + err.message); b.disabled = false; }
+  });
+}
+
+// ── Formulário de contrato (Novo/Editar) ────────────────────────────────────
+function formHtml(c) {
+  c = c || {};
+  const tipo = c.tipo || "ATA";
+  const opt = (v) => `<option value="${v}"${tipo === v ? " selected" : ""}>${v}</option>`;
+  return `<form class="ct-form" id="ctForm">
+    <div class="grid2-ct">
+      <div class="fld req"><label>Número</label><input name="numero" value="${esc(c.numero)}" required></div>
+      <div class="fld"><label>Tipo</label><select name="tipo">${opt("ATA")}${opt("CONTRATO")}${opt("CMS")}</select></div>
+      <div class="fld"><label>Fornecedor</label><input name="fornecedor" value="${esc(c.fornecedor)}"></div>
+      <div class="fld"><label>Valor total</label><input name="valor_total" type="number" step="any" value="${c.valor_total != null ? esc(c.valor_total) : ""}"></div>
+      <div class="fld"><label>Início da vigência</label><input name="vigencia_inicio" type="date" value="${esc(c.vigencia_inicio)}"></div>
+      <div class="fld"><label>Fim da vigência</label><input name="vigencia_fim" type="date" value="${esc(c.vigencia_fim)}"></div>
+    </div>
+    <div class="fld"><label>Objeto</label><input name="objeto" value="${esc(c.objeto)}"></div>
+    <div class="fld"><label>Observações</label><textarea name="observacoes" rows="2">${esc(c.observacoes)}</textarea></div>
+    <div class="fld chk"><input type="checkbox" name="ativo" id="ctAtivo" ${c.ativo === false ? "" : "checked"}><label for="ctAtivo">Ativo</label></div>
+    <span class="sev-erro ct-erro"></span>
+  </form>`;
+}
+
+async function abrirForm(id) {
+  let ct = null;
+  if (id != null) {
+    try { ct = await SDK.get("/contratos/" + id); }
+    catch (err) { alert("Falha ao carregar contrato: " + err.message); return; }
+  }
+  const titulo = id != null ? "Editar contrato" : "Novo contrato";
+  const ov = abrirModal(titulo, formHtml(ct),
+    `<button class="btn ghost" id="ctCancel" type="button">Cancelar</button>
+     <button class="btn" id="ctSalvar" type="button">Salvar</button>`);
+  const form = ov.querySelector("#ctForm");
+  const erro = ov.querySelector(".ct-erro");
+  ov.querySelector("#ctCancel").onclick = fecharModal;
+  ov.querySelector("#ctSalvar").onclick = async () => {
+    erro.textContent = "";
+    if (!form.numero.value.trim()) { erro.textContent = "Número é obrigatório."; return; }
+    // PUT é substituição total: enviar TODOS os campos de ContratoIn.
+    const vt = form.valor_total.value.trim();
+    const body = {
+      numero: form.numero.value.trim(),
+      tipo: form.tipo.value,
+      fornecedor: form.fornecedor.value.trim() || null,
+      objeto: form.objeto.value.trim() || null,
+      vigencia_inicio: form.vigencia_inicio.value || null,
+      vigencia_fim: form.vigencia_fim.value || null,
+      valor_total: vt === "" ? null : Number(vt),
+      ativo: form.ativo.checked,
+      observacoes: form.observacoes.value.trim() || null,
+    };
+    const btn = ov.querySelector("#ctSalvar");
+    btn.disabled = true;
+    try {
+      if (id != null) await SDK.put("/contratos/" + id, body);
+      else await SDK.post("/contratos", body);
+      fecharModal();
+      await carregar();
+    } catch (err) {
+      erro.textContent = "Falha ao salvar: " + err.message;
+      btn.disabled = false;
+    }
+  };
+}
+
+// ── Detalhe do contrato + itens ─────────────────────────────────────────────
+function detalheHtml(c) {
+  const meta = [
+    ["Tipo", esc(c.tipo)],
+    ["Fornecedor", esc(c.fornecedor) || "—"],
+    ["Vigência", `${fmtData(c.vigencia_inicio)} … ${fmtData(c.vigencia_fim)} ${badgeStatus(c.status_vigencia)}`],
+    ["Valor total", money(c.valor_total)],
+    ["Saldo", `${money(c.valor_saldo_total)} <span class="bdg saldo-${esc(c.status_saldo)}">${esc(c.status_saldo)}</span>`],
+    ["Objeto", esc(c.objeto) || "—"],
+  ];
+  const metaHtml = meta.map(([l, v]) => `<div><div class="l">${l}</div><div class="v">${v}</div></div>`).join("");
+  const linhas = (c.itens || []).map(it => `
+    <tr>
+      <td>${esc(it.numero) || "—"}</td>
+      <td>${esc(it.descricao) || "—"}</td>
+      <td>${it.quantidade}</td>
+      <td>${money(it.valor_unitario)}</td>
+      <td>${it.usado}</td>
+      <td>${it.saldo}</td>
+      <td>${money(it.valor_saldo)}</td>
+      <td>
+        <button class="btn ghost it-edit" data-id="${it.id}" style="padding:2px 8px">Editar</button>
+        <button class="btn ghost it-del" data-id="${it.id}" style="padding:2px 8px">Excluir</button>
+      </td>
+    </tr>`).join("") || `<tr><td colspan="8" class="muted">Nenhum item cadastrado.</td></tr>`;
+  return `<div class="ct-meta">${metaHtml}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <b>Itens</b>
+      <button class="btn ghost" id="itNovo" style="padding:2px 10px"><i class="bi bi-plus-lg"></i> Adicionar item</button>
+    </div>
+    <div class="twrap"><table><thead><tr>
+      <th>Item nº</th><th>Descrição</th><th>Quant.</th><th>Valor unit.</th>
+      <th>Usado</th><th>Saldo</th><th>Valor saldo</th><th>Ações</th></tr></thead>
+      <tbody>${linhas}</tbody></table></div>
+    <div id="itForm" style="margin-top:12px"></div>`;
+}
+
+let _detContrato = null;
+
+function renderDetalhe(c) {
+  _detContrato = c;
+  const body = document.querySelector("#modalOv .modal-body");
+  if (!body) return;
+  body.innerHTML = detalheHtml(c);
+  body.querySelector("#itNovo").onclick = () => mostrarItemForm(null);
+  body.querySelectorAll(".it-edit").forEach(b => b.onclick = () => {
+    const it = (c.itens || []).find(x => x.id === Number(b.dataset.id));
+    mostrarItemForm(it);
+  });
+  body.querySelectorAll(".it-del").forEach(b => b.onclick = async () => {
+    if (!confirm("Excluir este item?")) return;
+    b.disabled = true;
+    try {
+      const atual = await SDK.del(`/contratos/${c.id}/itens/${b.dataset.id}`);
+      renderDetalhe(atual);
+    } catch (err) { alert("Falha ao excluir item: " + err.message); b.disabled = false; }
+  });
+}
+
+function mostrarItemForm(it) {
+  it = it || {};
+  const slot = document.querySelector("#modalOv #itForm");
+  if (!slot) return;
+  slot.innerHTML = `<form class="ct-form" id="itFormEl" style="border-top:1px solid var(--bd);padding-top:12px">
+    <div class="grid2-ct">
+      <div class="fld"><label>Item nº</label><input name="numero" value="${esc(it.numero)}"></div>
+      <div class="fld"><label>Quantidade</label><input name="quantidade" type="number" value="${it.quantidade != null ? esc(it.quantidade) : "0"}"></div>
+      <div class="fld"><label>Valor unitário</label><input name="valor_unitario" type="number" step="any" value="${it.valor_unitario != null ? esc(it.valor_unitario) : ""}"></div>
+      <div class="fld"><label>Usado</label><input name="usado" type="number" value="${it.usado != null ? esc(it.usado) : "0"}"></div>
+    </div>
+    <div class="fld"><label>Descrição</label><input name="descricao" value="${esc(it.descricao)}"></div>
+    <div class="fld"><label>Observações</label><textarea name="observacoes" rows="2">${esc(it.observacoes)}</textarea></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn" type="button" id="itSalvar">Salvar item</button>
+      <button class="btn ghost" type="button" id="itCancel">Cancelar</button>
+      <span class="sev-erro it-erro"></span>
+    </div>
+  </form>`;
+  const form = slot.querySelector("#itFormEl");
+  const erro = slot.querySelector(".it-erro");
+  slot.querySelector("#itCancel").onclick = () => { slot.innerHTML = ""; };
+  slot.querySelector("#itSalvar").onclick = async () => {
+    erro.textContent = "";
+    const vu = form.valor_unitario.value.trim();
+    const body = {
+      numero: form.numero.value.trim() || null,
+      descricao: form.descricao.value.trim() || null,
+      quantidade: Number(form.quantidade.value || 0),
+      valor_unitario: vu === "" ? null : Number(vu),
+      usado: Number(form.usado.value || 0),
+      observacoes: form.observacoes.value.trim() || null,
+    };
+    const btn = slot.querySelector("#itSalvar");
+    btn.disabled = true;
+    try {
+      const cid = _detContrato.id;
+      const atual = it.id != null
+        ? await SDK.put(`/contratos/${cid}/itens/${it.id}`, body)
+        : await SDK.post(`/contratos/${cid}/itens`, body);
+      renderDetalhe(atual);
+    } catch (err) { erro.textContent = "Falha ao salvar item: " + err.message; btn.disabled = false; }
+  };
+}
+
+async function abrirDetalhe(id) {
+  let c;
+  try { c = await SDK.get("/contratos/" + id); }
+  catch (err) { alert("Falha ao carregar contrato: " + err.message); return; }
+  abrirModal(`Contrato ${c.numero}`, "<div></div>",
+    `<button class="btn" id="ctFechar" type="button">Fechar</button>`);
+  document.getElementById("ctFechar").onclick = async () => { fecharModal(); await carregar(); };
+  renderDetalhe(c);
+}
+
+document.getElementById("btnNovo").onclick = () => abrirForm(null);
+carregar();
+</script>
+</body></html>
