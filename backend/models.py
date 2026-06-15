@@ -226,6 +226,7 @@ class ItemContrato(Base):
     valor_unitario: Mapped[float | None] = mapped_column(Numeric(12, 2))
     usado: Mapped[int] = mapped_column(Integer, default=0)
     observacoes: Mapped[str | None] = mapped_column(String)
+    contrato: Mapped["Contrato | None"] = relationship()
 
 
 class CatalogoPreco(Base):

@@ -7,10 +7,11 @@ from backend.criticidade import calcular_igp
 from backend.contratos_calc import saldo_item, status_saldo
 from backend.models import (
     Instrumento, Calibracao, Laboratorio, StatusOperacional, Resultado,
-    Contrato, ItemContrato,
+    Contrato, ItemContrato, CatalogoPreco,
 )
 from backend.schemas import (
     InstrumentoOut, CalibracaoOut, LaboratorioOut, ContratoOut, ItemContratoOut,
+    CatalogoPrecoOut,
 )
 
 
@@ -191,4 +192,22 @@ def contrato_para_out(contrato: Contrato, hoje: date) -> ContratoOut:
         valor_saldo_total=valor_saldo_total,
         saldo_percent=saldo_percent,
         status_saldo=status_saldo(valor_saldo_total, vt),
+    )
+
+
+def catalogo_para_out(cat: CatalogoPreco) -> CatalogoPrecoOut:
+    item = cat.item_contrato
+    contrato = item.contrato if item is not None else None
+    return CatalogoPrecoOut(
+        id=cat.id,
+        tipo_id=cat.tipo_id,
+        fornecedor=cat.fornecedor,
+        preco=float(cat.preco) if cat.preco is not None else None,
+        item_contrato_id=cat.item_contrato_id,
+        ativo=cat.ativo,
+        observacoes=cat.observacoes,
+        tipo_nome=cat.tipo.nome if cat.tipo is not None else None,
+        item_numero=item.numero if item is not None else None,
+        contrato_id=contrato.id if contrato is not None else None,
+        contrato_numero=contrato.numero if contrato is not None else None,
     )
