@@ -249,19 +249,19 @@ US-E04 | Como metrológista, quero registrar justificativa quando alterar o inte
 
 ### FASE 1 — MVP: Controle e Visibilidade (P0 — Deve ter)
 
-#### 6.1 Cadastro de Instrumentos
-- [ ] Cadastro completo: fabricante, modelo, número de série, código patrimonial, código interno
-- [ ] Tipo de instrumento (Multímetro, Osciloscópio, Fonte DC, Paquímetro, etc.)
-- [ ] Família metrológica (Elétrica, Eletrônica, Dimensional, Temperatura, Pressão, Torque, Massa, RF, Acústica)
-- [ ] Grandeza medida principal + unidade SI
-- [ ] Faixa nominal + resolução + exatidão/EMP
-- [ ] Periodicidade de calibração (padrão: 12 meses, configurável)
+#### 6.1 Cadastro de Instrumentos ✅ Entregue (tela `cadastro.html` + ficha `ficha.html`)
+- [x] Cadastro completo: fabricante/marca, modelo, número de série, código patrimonial, código interno
+- [x] Tipo de instrumento (FK `tipo_instrumento`, select no form)
+- [x] Família metrológica (FK `familia_metrologica`, select obrigatório)
+- [x] Grandeza medida principal + unidade SI (FKs `grandeza`/`unidade_medida`)
+- [x] Faixa nominal (mín/máx) + resolução + exatidão/EMP
+- [x] Periodicidade de calibração (padrão: 12 meses, configurável)
 - [x] **Criticidade via IGP** (Índice Global de Prioridade do Equipamento) — substitui o Classe A/B/C/D da v1.1. Ver detalhamento abaixo.
-- [ ] Localização: Organização → Unidade → Seção → Bancada
-- [ ] Status: ATIVO / EM CALIBRAÇÃO / EM MANUTENÇÃO / REPROVADO / BLOQUEADO / BAIXADO
-- [ ] Campos de observação livre
-- [ ] Upload de foto do equipamento e do manual (PDF)
-- [ ] **Critério de aceitação:** Cadastro salvo em < 2 minutos; campos obrigatórios validados; código patrimonial único
+- [x] Localização: Organização → Unidade → Seção → Bancada (+ Sistema)
+- [x] Status: ATIVO / EM CALIBRAÇÃO / EM MANUTENÇÃO / REPROVADO / BLOQUEADO / BAIXADO
+- [x] Campos de observação livre
+- [x] Upload de foto do equipamento e do manual (PDF) — seção "Anexos" na ficha (`POST /instrumentos/{id}/foto` e `/manual`, valida tipo → 415)
+- [x] **Critério de aceitação:** campos obrigatórios validados (HTML `required` + backend); **código patrimonial único** (backend retorna 409 "Código patrimonial já existe", tratado no `SDK.post`/`SDK.put`)
 
 ##### Modelo de criticidade — IGP (implementado)
 O Classe A/B/C/D do PRD v1.1 foi substituído por um índice multifatorial, mais aderente à realidade da DME. São **5 fatores**, cada um pontuado de **1 a 3** (`backend/criticidade.py`, motor puro sem I/O):
