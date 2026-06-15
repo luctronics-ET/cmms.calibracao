@@ -226,3 +226,25 @@ class ItemContrato(Base):
     valor_unitario: Mapped[float | None] = mapped_column(Numeric(12, 2))
     usado: Mapped[int] = mapped_column(Integer, default=0)
     observacoes: Mapped[str | None] = mapped_column(String)
+
+
+class CatalogoPreco(Base):
+    __tablename__ = "catalogo_preco"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tipo_id: Mapped[int] = mapped_column(
+        ForeignKey("tipo_instrumento.id"), index=True
+    )
+    fornecedor: Mapped[str | None] = mapped_column(String)
+    preco: Mapped[float | None] = mapped_column(Numeric(12, 2))
+    item_contrato_id: Mapped[int | None] = mapped_column(
+        ForeignKey("item_contrato.id", ondelete="SET NULL"), index=True
+    )
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+    observacoes: Mapped[str | None] = mapped_column(String)
+    criado_em: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    atualizado_em: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+    tipo: Mapped["TipoInstrumento | None"] = relationship()
+    item_contrato: Mapped["ItemContrato | None"] = relationship()
