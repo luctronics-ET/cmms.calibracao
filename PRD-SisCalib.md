@@ -27,7 +27,7 @@ Snapshot do que está **entregue e mergeado em `main`** vs. pendente. Stack real
 | Modelo de criticidade **IGP** | ✅ Entregue | `backend/criticidade.py` — substitui Classe A/B/C/D (ver §6.1) |
 | Edição em massa | ✅ Entregue | `PATCH /instrumentos/{id}` parcial, modal de ficha, multi-seleção + edição em lote |
 | Exportação CSV/XLSX/PDF | ✅ Entregue | `POST /api/v1/instrumentos/export`; CSV UTF-8-BOM, XLSX openpyxl, PDF resumo fpdf2 |
-| **Registro de calibrações (6.2)** | ⬜ Pendente | hoje `data_ultima_calibracao`/`data_validade` ficam no próprio instrumento; falta entidade `calibracoes` + histórico + upload de certificado PDF |
+| **Registro de calibrações (6.2)** | ✅ Entregue | entidade `calibracao` (histórico 1→N), `backend/routers/calibracoes.py` (GET histórico, POST registrar, upload certificado PDF, DELETE); validade/status do instrumento **derivados** da última calibração; REPROVADO bloqueia (validade null + status REPROVADO); backfill `origem=IMPORTACAO` no startup; UI na ficha + página `calibracao.html` |
 | Gestão de laboratórios (6.4) | ⬜ Pendente | — |
 | Etiquetas com QR Code (6.6) | ⬜ Pendente | — |
 | Página pública por seção (`/qr/{codigo}`) | ⬜ Pendente | — |
@@ -284,17 +284,18 @@ O Classe A/B/C/D do PRD v1.1 foi substituído por um índice multifatorial, mais
 
 > `CM` (criticidade metrológica) é também a base prevista para a futura **regra de elegibilidade de calibração interna** (Fase 2).
 
-#### 6.2 Registro de Calibrações
-- [ ] Vínculo de calibração ao instrumento
-- [ ] Data de calibração + data de emissão do certificado
-- [ ] Data de validade (calculada automaticamente = data calibração + periodicidade)
-- [ ] Laboratório executante (nome, CNPJ, acreditação RBC/CGCRE — sim/não, número CGCRE)
-- [ ] Número do certificado
-- [ ] Resultado: APROVADO / APROVADO COM RESTRIÇÕES / REPROVADO
-- [ ] Upload do certificado PDF
-- [ ] Custo da calibração + vínculo ao contrato/ARP
-- [ ] Responsável técnico que recebeu o certificado
-- [ ] **Critério de aceitação:** Após registro, status e validade do instrumento atualizam automaticamente; certificado acessível em < 3 cliques
+#### 6.2 Registro de Calibrações ✅ Entregue (entidade `calibracao`)
+- [x] Vínculo de calibração ao instrumento (histórico 1→N)
+- [x] Data de calibração
+- [x] Data de validade (calculada automaticamente = data calibração + ciclo_meses; null se REPROVADO)
+- [x] Laboratório executante em texto livre (nome, CNPJ, acreditação RBC sim/não, número CGCRE) — *FK para entidade Laboratório fica para 6.4*
+- [x] Número do certificado
+- [x] Resultado: APROVADO / APROVADO COM RESTRIÇÕES / REPROVADO (REPROVADO bloqueia o uso — US-B05)
+- [x] Upload do certificado PDF (`uploads/{inst_id}/cert_{cal_id}.pdf`)
+- [x] Custo da calibração *(vínculo ao contrato/ARP é Fase 3 §6.14)*
+- [x] Responsável técnico que recebeu o certificado
+- [x] **Critério de aceitação:** Após registro, status e validade do instrumento atualizam automaticamente (campos derivados da última calibração); certificado acessível por link direto na ficha
+- *Pontos de calibração / incerteza / condições ambientais → Fase 2 §6.7 (fora de escopo desta entrega)*
 
 #### 6.3 Painel de Alertas In-App (sem email)
 - [ ] Widget permanente no dashboard: contadores de VENCIDOS / A VENCER 7 dias / A VENCER 30 dias / A VENCER 60 dias
@@ -659,7 +660,7 @@ Legenda: [x] entregue em `main` · [ ] pendente
   [x] Dashboard de status com filtros por seção/grandeza/prioridade
   [x] Exportação do inventário (CSV / XLSX / PDF resumo)
   [x] API /api/v1/ versionada (base para integração futura com cmasm.erp)
-  [ ] Registro de calibrações externas + upload de certificados PDF (entidade `calibracoes`)
+  [x] Registro de calibrações externas + upload de certificados PDF (entidade `calibracao`, histórico + validade derivada)
   [ ] Etiquetas com QR Code (impressão individual e em lote)
   [ ] Gestão de laboratórios externos (acreditação, escopo)
   [ ] Relatório de conformidade exportável para auditoria
