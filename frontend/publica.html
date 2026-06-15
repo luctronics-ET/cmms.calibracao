@@ -1,0 +1,59 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SisCalib · Consulta pública</title>
+<link rel="stylesheet" href="vendor/fonts.css">
+<link rel="stylesheet" href="vendor/bootstrap-icons.min.css">
+<link rel="stylesheet" href="vendor/xcmasm-govbr.css">
+<link rel="stylesheet" href="siscalib.css">
+<style>
+  .pub-main{max-width:520px;margin:0 auto;padding:18px 16px 40px}
+  .pub-head{display:flex;align-items:center;gap:10px;margin-bottom:16px;color:var(--tx3);font-size:13px}
+  .pub-head img{height:28px}
+  .pub-codigo{font-size:34px;font-weight:800;line-height:1.1;word-break:break-word}
+  .pub-patrim{color:var(--tx3);font-size:14px;margin-top:2px}
+  .pub-equip{font-size:18px;font-weight:600;margin:10px 0 4px}
+  .pub-status{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0}
+  .pub-nota{color:var(--tx3);font-size:12px;margin-top:18px;text-align:center}
+</style>
+</head><body class="app">
+<script src="app.js"></script>
+<main class="pub-main">
+  <div class="pub-head">
+    <img src="vendor/Logo_of_the_Brazilian_Navy.svg.png" alt="MB">
+    <span>SisCalib · consulta pública</span>
+  </div>
+  <div id="corpo"><p class="muted">Carregando…</p></div>
+  <div class="pub-nota">Sem login — leitura por QR</div>
+</main>
+<script>
+(async () => {
+  const corpo = document.getElementById("corpo");
+  const id = new URLSearchParams(location.search).get("id");
+  if (!id) { corpo.innerHTML = `<p class="sev-erro">Instrumento não encontrado</p>`; return; }
+  let i;
+  try { i = await SDK.get("/publico/instrumentos/" + id); }
+  catch (err) { corpo.innerHTML = `<p class="sev-erro">Instrumento não encontrado</p>`; return; }
+
+  const loc = [i.secao, i.sistema].filter(Boolean).map(esc).join(" · ") || "—";
+  const tmm = [i.tipo_nome, i.marca, i.modelo].filter(Boolean).map(esc).join(" · ") || "—";
+  const dias = i.dias_restantes != null ? ` <span class="muted">(${i.dias_restantes} dias)</span>` : "";
+
+  corpo.innerHTML = `
+    <div class="card">
+      <div class="pub-codigo">${esc(i.codigo_interno) || esc(i.codigo_patrimonial) || "(sem código)"}</div>
+      ${i.codigo_patrimonial ? `<div class="pub-patrim">Patrimônio: ${esc(i.codigo_patrimonial)}</div>` : ""}
+      <div class="pub-equip">${esc(i.equipamento) || "—"}</div>
+      <div class="pub-status">
+        ${badgeStatus(i.status)}${dias}
+        <span class="bdg slate">${esc(i.status_operacional)}</span>
+      </div>
+      <div class="twrap"><table><tbody>
+        <tr><th style="width:160px">Validade</th><td>${fmtData(i.data_validade)}</td></tr>
+        <tr><th>Última calibração</th><td>${fmtData(i.data_ultima_calibracao)}</td></tr>
+        <tr><th>Tipo / Marca / Modelo</th><td>${tmm}</td></tr>
+        <tr><th>Localização</th><td>${loc}</td></tr>
+      </tbody></table></div>
+    </div>`;
+})();
+</script>
+</body></html>
