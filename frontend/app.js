@@ -227,6 +227,7 @@ function renderFichaResumo(i) {
   return `<div style="margin-bottom:12px">${status}</div>
     <div class="twrap"><table><tbody>${tabela}</tbody></table></div>
     <div style="margin-top:12px"><b>Anexos</b>
+      <a class="btn ghost" href="etiquetas.html?ids=${i.id}" target="_blank" style="margin-left:10px"><i class="bi bi-tag"></i> Gerar etiqueta</a>
       <div id="secaoAnexos" data-inst="${i.id}" style="margin-top:6px"></div></div>
     <div style="margin-top:16px"><b>Calibrações</b>
       <span class="muted" style="margin-left:8px">Ciclo: ${i.ciclo_meses ?? 12} meses</span>

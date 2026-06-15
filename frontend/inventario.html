@@ -18,6 +18,7 @@
       <button class="btn ghost" data-exp="xlsx">XLS</button>
       <button class="btn ghost" data-exp="csv">CSV</button>
     </div>
+    <button class="btn ghost" id="btnEtiquetas"><i class="bi bi-tag"></i> Etiquetas</button>
     <span class="cont-itens" id="cont" style="margin-left:auto"></span>
   </div>
   <div class="selbar" id="selbar" style="display:none">
@@ -334,6 +335,14 @@ document.querySelector(".export-grp").addEventListener("click", async (e) => {
   try { await SDK.exportar(ids, btn.dataset.exp); }
   catch (err) { alert("Falha ao exportar: " + err.message); }
   finally { btn.disabled = false; btn.textContent = orig; }
+});
+
+// ── Etiquetas ─────────────────────────────────────────────────────────────
+document.getElementById("btnEtiquetas").addEventListener("click", () => {
+  const base = selecionados.size ? itensAtuais.filter(i => selecionados.has(i.id)) : itensAtuais;
+  const ids = base.map(i => i.id);
+  if (!ids.length) { alert("Nada para etiquetar."); return; }
+  location.href = "etiquetas.html?ids=" + ids.join(",");
 });
 
 // busca reaproveita o debounce, mas filtra client-side
