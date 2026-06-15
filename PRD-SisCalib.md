@@ -28,7 +28,7 @@ Snapshot do que está **entregue e mergeado em `main`** vs. pendente. Stack real
 | Edição em massa | ✅ Entregue | `PATCH /instrumentos/{id}` parcial, modal de ficha, multi-seleção + edição em lote |
 | Exportação CSV/XLSX/PDF | ✅ Entregue | `POST /api/v1/instrumentos/export`; CSV UTF-8-BOM, XLSX openpyxl, PDF resumo fpdf2 |
 | **Registro de calibrações (6.2)** | ✅ Entregue | entidade `calibracao` (histórico 1→N), `backend/routers/calibracoes.py` (GET histórico, POST registrar, upload certificado PDF, DELETE); validade/status do instrumento **derivados** da última calibração; REPROVADO bloqueia (validade null + status REPROVADO); backfill `origem=IMPORTACAO` no startup; UI na ficha + página `calibracao.html` |
-| Gestão de laboratórios (6.4) | ⬜ Pendente | — |
+| **Gestão de laboratórios (6.4)** | ✅ Entregue | entidade `laboratorio` (razão social, CNPJ, contato, acreditação CGCRE/RBC, escopo texto-livre, validade), `backend/routers/laboratorios.py` (CRUD + `/alertas` + histórico por lab); status de acreditação reusa `calcular_status`; calibração ganhou FK opcional `laboratorio_id` com **snapshot** dos dados do lab; UI `laboratorios.html` + select no form de calibração + seção "Acreditações a vencer" em `alertas.html` |
 | Etiquetas com QR Code (6.6) | ⬜ Pendente | — |
 | Página pública por seção (`/qr/{codigo}`) | ⬜ Pendente | — |
 | Autenticação JWT | ⬜ Pendente | sistema roda sem login na rede local interna |
@@ -306,11 +306,13 @@ O Classe A/B/C/D do PRD v1.1 foi substituído por um índice multifatorial, mais
 - [ ] Página pública por seção (sem login) mostrando apenas o painel de status dos instrumentos daquela seção — pode ser deixada aberta em tablet ou monitor da bancada
 - [ ] **Critério de aceitação:** Status de todos os instrumentos recalculado a cada acesso ao dashboard; lista de alertas exportável em < 3 cliques; sem dependência de SMTP ou serviço externo
 
-#### 6.4 Gestão de Laboratórios
-- [ ] Cadastro de laboratórios: razão social, CNPJ, endereço, contato
-- [ ] Acreditação RBC/CGCRE: número, escopo de grandezas, validade da acreditação
-- [ ] Alerta quando acreditação do laboratório estiver próxima do vencimento
-- [ ] Histórico de calibrações por laboratório
+#### 6.4 Gestão de Laboratórios ✅ Entregue (entidade `laboratorio`)
+- [x] Cadastro de laboratórios: razão social, CNPJ, endereço, contato (+ telefone, email)
+- [x] Acreditação RBC/CGCRE: número, escopo de grandezas (texto livre), validade da acreditação
+- [x] Alerta quando acreditação do laboratório estiver próxima do vencimento (badge na lista + `/laboratorios/alertas` na seção "Acreditações a vencer" do Painel de Alertas; reusa os limiares 7/30/60d)
+- [x] Histórico de calibrações por laboratório (`GET /laboratorios/{id}/calibracoes`)
+- [x] Vínculo opcional calibração→laboratório (`laboratorio_id` FK) com **snapshot** dos dados do lab na calibração (sobrevive a edição/exclusão do lab)
+- *Escopo estruturado por grandeza/validação de cobertura → fora de escopo (YAGNI)*
 
 #### 6.5 Importação Inicial
 - [ ] Importação via CSV/Excel com template pré-definido para migração do inventário atual
@@ -662,7 +664,7 @@ Legenda: [x] entregue em `main` · [ ] pendente
   [x] API /api/v1/ versionada (base para integração futura com cmasm.erp)
   [x] Registro de calibrações externas + upload de certificados PDF (entidade `calibracao`, histórico + validade derivada)
   [ ] Etiquetas com QR Code (impressão individual e em lote)
-  [ ] Gestão de laboratórios externos (acreditação, escopo)
+  [x] Gestão de laboratórios externos (acreditação, escopo, alerta de vencimento, histórico)
   [ ] Relatório de conformidade exportável para auditoria
   [ ] Página pública de seção (tablet na bancada, sem login)
   [ ] Autenticação JWT
