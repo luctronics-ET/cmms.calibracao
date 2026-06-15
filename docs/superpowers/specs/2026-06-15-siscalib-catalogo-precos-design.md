@@ -85,8 +85,13 @@ módulo. O seed:
    valor_unitario=valor, usado=usado)` se não existir item com aquele `numero` nesse contrato.
 3. **Catálogo:** para cada tipo de `CATALOG_DEFAULT` (chave = nome do protótipo) e cada opção
    (`{forn, contrato, preco, item, tipo}`):
-   - casa o nome do tipo com um `TipoInstrumento` por **nome normalizado** (sem acento,
-     case-insensitive — função `_norm`); se não casar, **pula e loga** (não cria tipo).
+   - casa o nome do tipo com um `TipoInstrumento` por **substring normalizado**: normaliza
+     (sem acento, sem espaço, lowercase — função `_norm`) e procura o `TipoInstrumento` cujo
+     nome normalizado **esteja contido** na chave do catálogo (ex.: domínio "Manômetro" →
+     `manometro` ⊂ `manometroanalogicobacs`). Em empate, vence o nome de domínio **mais
+     longo**. Se nenhum casar, **pula e loga** (não cria tipo). É esperado que vários tipos do
+     catálogo mapeiem para o mesmo `TipoInstrumento` genérico (várias opções de preço por
+     tipo) — isso é o comportamento desejado.
    - resolve `item_contrato_id`: se a opção tem `item` (≠ "—"), busca o `ItemContrato` do
      contrato ATA com `numero == str(item)`; senão None.
    - cria `CatalogoPreco(tipo_id, fornecedor=forn, preco=preco, item_contrato_id, ativo=True)`
