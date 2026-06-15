@@ -29,6 +29,7 @@ Snapshot do que está **entregue e mergeado em `main`** vs. pendente. Stack real
 | Exportação CSV/XLSX/PDF | ✅ Entregue | `POST /api/v1/instrumentos/export`; CSV UTF-8-BOM, XLSX openpyxl, PDF resumo fpdf2 |
 | **Registro de calibrações (6.2)** | ✅ Entregue | entidade `calibracao` (histórico 1→N), `backend/routers/calibracoes.py` (GET histórico, POST registrar, upload certificado PDF, DELETE); validade/status do instrumento **derivados** da última calibração; REPROVADO bloqueia (validade null + status REPROVADO); backfill `origem=IMPORTACAO` no startup; UI na ficha + página `calibracao.html` |
 | **Gestão de laboratórios (6.4)** | ✅ Entregue | entidade `laboratorio` (razão social, CNPJ, contato, acreditação CGCRE/RBC, escopo texto-livre, validade), `backend/routers/laboratorios.py` (CRUD + `/alertas` + histórico por lab); status de acreditação reusa `calcular_status`; calibração ganhou FK opcional `laboratorio_id` com **snapshot** dos dados do lab; UI `laboratorios.html` + select no form de calibração + seção "Acreditações a vencer" em `alertas.html` |
+| **Contratos & Saldo da ATA (6.14, parcial)** | ✅ Entregue | entidades `contrato`/`item_contrato`, saldo derivado por item e agregado, alertas de vigência/saldo; consumo `usado` manual (automático virá com os Lotes) |
 | Etiquetas com QR Code (6.6) | ⬜ Pendente | — |
 | Página pública por seção (`/qr/{codigo}`) | ⬜ Pendente | — |
 | Autenticação JWT | ⬜ Pendente | sistema roda sem login na rede local interna |
@@ -391,11 +392,11 @@ Esta funcionalidade permite que a Seção de Eletrônica (ou outro setor autoriz
 
 ### FASE 3 — Gestão e Planejamento (P1 — Deve ter na v3)
 
-#### 6.14 Gestão de Contratos e ARPs
-- [ ] Cadastro de contratos: número, processo, fornecedor, vigência, valor total, saldo
-- [ ] Suporte a ARPs (Atas de Registro de Preços) com controle de saldo por item
+#### 6.14 Gestão de Contratos e ARPs ✅ Parcial (entidades `contrato`/`item_contrato`)
+- [x] Cadastro de contratos: número, processo, fornecedor, vigência, valor total, saldo
+- [x] Suporte a ARPs (Atas de Registro de Preços) com controle de saldo por item
 - [ ] Vinculação de cada calibração ao contrato correspondente
-- [ ] Alerta de contrato próximo do vencimento ou com saldo baixo
+- [x] Alerta de contrato próximo do vencimento ou com saldo baixo
 - [ ] Integração com dados do PNCP para consulta de ARPs vigentes
 
 #### 6.15 Plano Anual de Calibração

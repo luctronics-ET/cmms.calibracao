@@ -23,6 +23,11 @@
   <div class="twrap"><table id="tabLab"><thead><tr>
     <th>Laboratório</th><th>CGCRE</th><th>Validade</th><th>Status</th>
   </tr></thead><tbody></tbody></table></div>
+
+  <h1 style="margin-top:28px">Contratos a vencer / saldo baixo</h1>
+  <div class="twrap"><table id="tabCt"><thead><tr>
+    <th>Número</th><th>Fornecedor</th><th>Vigência</th><th>Saldo</th>
+  </tr></thead><tbody></tbody></table></div>
 </main>
 <script>
 montarShell("alertas.html");
@@ -59,11 +64,25 @@ async function carregarLabs() {
     || `<tr><td colspan="4" class="muted">Nenhuma acreditação a vencer.</td></tr>`;
 }
 
+async function carregarContratos() {
+  const tb = document.querySelector("#tabCt tbody");
+  let itens;
+  try { itens = await SDK.get("/contratos/alertas"); }
+  catch (err) { tb.innerHTML = `<tr><td colspan="4" class="sev-erro">Falha: ${esc(err.message)}</td></tr>`; return; }
+  tb.innerHTML = itens.map(c => `
+    <tr><td>${esc(c.numero)}</td>
+    <td>${esc(c.fornecedor) || "—"}</td>
+    <td>${fmtData(c.vigencia_fim)} ${badgeStatus(c.status_vigencia)}</td>
+    <td><span class="bdg saldo-${esc(c.status_saldo)}">${esc(c.status_saldo)}</span></td></tr>`).join("")
+    || `<tr><td colspan="4" class="muted">Nenhum contrato a vencer ou com saldo baixo.</td></tr>`;
+}
+
 (async () => {
   const r = await SDK.get("/instrumentos");
   [...new Set(r.itens.map(i => i.sistema).filter(Boolean))].sort()
     .forEach(s => sistema.add(new Option(s, s)));
   carregar();
   carregarLabs();
+  carregarContratos();
 })();
 </script></body></html>
