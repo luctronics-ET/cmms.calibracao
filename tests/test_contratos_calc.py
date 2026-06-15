@@ -29,3 +29,5 @@ def test_status_saldo_ok_baixo_esgotado():
 def test_status_saldo_sem_valor_total():
     assert status_saldo(valor_saldo_total=500.0, valor_total=None) == "OK"
     assert status_saldo(valor_saldo_total=500.0, valor_total=0.0) == "OK"
+    # sem base monetária, total zero NÃO é "esgotado" — não há como classificar
+    assert status_saldo(valor_saldo_total=0.0, valor_total=None) == "OK"

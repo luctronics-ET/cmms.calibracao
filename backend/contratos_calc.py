@@ -14,11 +14,12 @@ def saldo_item(quantidade: int, usado: int, valor_unitario: float | None) -> tup
 
 
 def status_saldo(valor_saldo_total: float, valor_total: float | None) -> str:
-    """OK / BAIXO / ESGOTADO. Sem valor_total definido (None/0) -> OK."""
-    if valor_saldo_total <= 0:
-        return "ESGOTADO"
+    """OK / BAIXO / ESGOTADO. Sem valor_total definido (None/0) -> OK
+    (sem base monetária não dá para classificar saldo)."""
     if not valor_total:
         return "OK"
+    if valor_saldo_total <= 0:
+        return "ESGOTADO"
     if valor_saldo_total / valor_total < LIMIAR_SALDO_BAIXO:
         return "BAIXO"
     return "OK"

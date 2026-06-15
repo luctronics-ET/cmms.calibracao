@@ -58,7 +58,8 @@ def alertas(db: Session = Depends(get_db)):
     itens = [c for c in itens
              if c.status_vigencia in _URGENCIA or c.status_saldo in ("BAIXO", "ESGOTADO")]
     itens.sort(key=lambda c: (_URGENCIA.get(c.status_vigencia, 9),
-                              0 if c.status_saldo == "ESGOTADO" else 1))
+                              0 if c.status_saldo == "ESGOTADO" else 1,
+                              c.dias_restantes if c.dias_restantes is not None else 99999))
     return itens
 
 

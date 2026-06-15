@@ -87,3 +87,21 @@ def test_alertas_vigencia_ou_saldo(client):
     assert "OK" not in nomes
     assert "Vencendo" in nomes
     assert "SaldoBaixo" in nomes
+
+
+def test_item_de_outro_contrato_404(client):
+    a = _cria_contrato(client, numero="A")
+    b = _cria_contrato(client, numero="B")
+    item = _add_item(client, a["id"])["itens"][0]
+    # editar/excluir o item de A pela URL de B deve dar 404
+    r = client.put(f"/api/v1/contratos/{b['id']}/itens/{item['id']}",
+                   json={"numero": "14", "quantidade": 10, "valor_unitario": 50.0, "usado": 0})
+    assert r.status_code == 404
+    assert client.delete(f"/api/v1/contratos/{b['id']}/itens/{item['id']}").status_code == 404
+
+
+def test_saldo_percent_none_sem_valor_total(client):
+    c = _cria_contrato(client, numero="SemTeto", valor_total=None)
+    c2 = _add_item(client, c["id"], quantidade=10, valor_unitario=50.0, usado=0)
+    assert c2["saldo_percent"] is None
+    assert c2["status_saldo"] == "OK"
