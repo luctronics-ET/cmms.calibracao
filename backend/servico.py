@@ -11,7 +11,7 @@ from backend.models import (
 )
 from backend.schemas import (
     InstrumentoOut, CalibracaoOut, LaboratorioOut, ContratoOut, ItemContratoOut,
-    CatalogoPrecoOut,
+    CatalogoPrecoOut, InstrumentoPublicoOut,
 )
 
 
@@ -210,4 +210,31 @@ def catalogo_para_out(cat: CatalogoPreco) -> CatalogoPrecoOut:
         item_numero=item.numero if item is not None else None,
         contrato_id=contrato.id if contrato is not None else None,
         contrato_numero=contrato.numero if contrato is not None else None,
+    )
+
+
+_STATUS_LABEL_PUB = {
+    "VALIDO": "Válido", "A_VENCER_60": "A vencer (60d)", "A_VENCER_30": "A vencer (30d)",
+    "A_VENCER_7": "A vencer (7d)", "VENCIDO": "Vencido", "SEM_DATA": "Sem data", "BAIXADO": "Baixado",
+}
+
+
+def instrumento_publico_para_out(inst, hoje: date) -> InstrumentoPublicoOut:
+    st = calcular_status(inst.data_validade, inst.flag_origem, hoje)
+    return InstrumentoPublicoOut(
+        id=inst.id,
+        codigo_interno=inst.codigo_interno,
+        codigo_patrimonial=inst.codigo_patrimonial,
+        equipamento=inst.equipamento,
+        marca=inst.marca,
+        modelo=inst.modelo,
+        tipo_nome=inst.tipo.nome if inst.tipo is not None else None,
+        secao=inst.secao,
+        sistema=inst.sistema,
+        status=st.status.value,
+        status_label=_STATUS_LABEL_PUB.get(st.status.value, st.status.value),
+        status_operacional=inst.status_operacional.value,
+        data_ultima_calibracao=inst.data_ultima_calibracao,
+        data_validade=inst.data_validade,
+        dias_restantes=st.dias_restantes,
     )

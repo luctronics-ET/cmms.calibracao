@@ -359,3 +359,21 @@ class CatalogoPrecoOut(BaseModel):
 class ListaCatalogo(BaseModel):
     total: int
     itens: list[CatalogoPrecoOut]
+
+
+class InstrumentoPublicoOut(BaseModel):
+    id: int
+    codigo_interno: str | None
+    codigo_patrimonial: str | None
+    equipamento: str | None
+    marca: str | None
+    modelo: str | None
+    tipo_nome: str | None
+    secao: str | None
+    sistema: str | None
+    status: str
+    status_label: str
+    status_operacional: str
+    data_ultima_calibracao: date | None
+    data_validade: date | None
+    dias_restantes: int | None
