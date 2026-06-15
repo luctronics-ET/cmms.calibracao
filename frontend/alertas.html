@@ -18,6 +18,11 @@
   <div class="twrap"><table id="tab"><thead><tr>
     <th>Código</th><th>Equipamento</th><th>Sistema</th><th>Validade</th>
     <th>Dias</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+
+  <h1 style="margin-top:28px">Acreditações a vencer</h1>
+  <div class="twrap"><table id="tabLab"><thead><tr>
+    <th>Laboratório</th><th>CGCRE</th><th>Validade</th><th>Status</th>
+  </tr></thead><tbody></tbody></table></div>
 </main>
 <script>
 montarShell("alertas.html");
@@ -40,10 +45,25 @@ async function carregar() {
     || `<tr><td colspan="6" class="muted">Sem alertas.</td></tr>`;
 }
 [disciplina, sistema].forEach(e => e.onchange = carregar);
+
+async function carregarLabs() {
+  const tb = document.querySelector("#tabLab tbody");
+  let itens;
+  try { itens = await SDK.get("/laboratorios/alertas"); }
+  catch (err) { tb.innerHTML = `<tr><td colspan="4" class="sev-erro">Falha: ${esc(err.message)}</td></tr>`; return; }
+  tb.innerHTML = itens.map(l => `
+    <tr><td>${esc(l.razao_social)}</td>
+    <td>${esc(l.numero_cgcre) || "—"}</td>
+    <td>${fmtData(l.acreditacao_validade)}</td>
+    <td>${badgeStatus(l.status_acreditacao)}</td></tr>`).join("")
+    || `<tr><td colspan="4" class="muted">Nenhuma acreditação a vencer.</td></tr>`;
+}
+
 (async () => {
   const r = await SDK.get("/instrumentos");
   [...new Set(r.itens.map(i => i.sistema).filter(Boolean))].sort()
     .forEach(s => sistema.add(new Option(s, s)));
   carregar();
+  carregarLabs();
 })();
 </script></body></html>
