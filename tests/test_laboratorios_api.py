@@ -44,6 +44,9 @@ def test_atualiza_laboratorio(client):
     assert r.status_code == 200
     assert r.json()["razao_social"] == "Lab Renomeado"
     assert r.json()["acreditado_rbc"] is False
+    # PUT é replace total: campos omitidos no corpo são zerados (não é PATCH)
+    assert r.json()["cnpj"] is None
+    assert r.json()["numero_cgcre"] is None
 
 
 def test_alertas_so_traz_vencendo_ordenado(client):
@@ -68,6 +71,7 @@ def test_registro_calibracao_com_laboratorio_id_faz_snapshot(client):
     cal = r.json()["calibracao"]
     assert cal["laboratorio_id"] == lab["id"]
     assert cal["laboratorio"] == "Lab Snap"          # snapshot
+    assert cal["laboratorio_cnpj"] == "11.111.111/0001-11"  # snapshot
     assert cal["numero_cgcre"] == "CRL-999"          # snapshot
     assert cal["acreditacao_rbc"] is True            # snapshot
 
