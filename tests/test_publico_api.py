@@ -31,5 +31,8 @@ def test_publico_nao_vaza_campos_sensiveis(client):
     iid = _id_por_codigo(client, "A-1")
     b = client.get(f"/api/v1/publico/instrumentos/{iid}").json()
     for proibido in ("custo_estimado", "custo_contratado", "observacoes",
-                     "fu", "nc", "ab", "cm", "ci", "organizacao_calibradora"):
+                     "fu", "nc", "ab", "cm", "ci", "organizacao_calibradora",
+                     "certificado_ref", "foto_path", "manual_path",
+                     "local_calibracao", "serial", "flag_origem",
+                     "divergencia_flag", "igp", "classe_prioridade"):
         assert proibido not in b, f"vazou campo sensível: {proibido}"
