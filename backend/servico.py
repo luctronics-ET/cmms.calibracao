@@ -4,8 +4,8 @@ from datetime import date
 from sqlalchemy.orm import Session
 from backend.calibracao import calcular_status, derivar_de_calibracoes
 from backend.criticidade import calcular_igp
-from backend.models import Instrumento, Calibracao, StatusOperacional, Resultado
-from backend.schemas import InstrumentoOut, CalibracaoOut
+from backend.models import Instrumento, Calibracao, Laboratorio, StatusOperacional, Resultado
+from backend.schemas import InstrumentoOut, CalibracaoOut, LaboratorioOut
 
 
 def instrumento_para_out(inst: Instrumento, hoje: date) -> InstrumentoOut:
@@ -65,6 +65,7 @@ def calibracao_para_out(cal: Calibracao) -> CalibracaoOut:
     return CalibracaoOut(
         id=cal.id,
         instrumento_id=cal.instrumento_id,
+        laboratorio_id=cal.laboratorio_id,
         data_calibracao=cal.data_calibracao,
         data_validade=cal.data_validade,
         ciclo_meses=cal.ciclo_meses,
@@ -79,6 +80,27 @@ def calibracao_para_out(cal: Calibracao) -> CalibracaoOut:
         certificado_path=cal.certificado_path,
         origem=cal.origem,
         observacoes=cal.observacoes,
+    )
+
+
+def laboratorio_para_out(lab: Laboratorio, hoje: date) -> LaboratorioOut:
+    st = calcular_status(lab.acreditacao_validade, None, hoje)
+    return LaboratorioOut(
+        id=lab.id,
+        razao_social=lab.razao_social,
+        cnpj=lab.cnpj,
+        endereco=lab.endereco,
+        contato=lab.contato,
+        telefone=lab.telefone,
+        email=lab.email,
+        numero_cgcre=lab.numero_cgcre,
+        acreditado_rbc=lab.acreditado_rbc,
+        escopo=lab.escopo,
+        acreditacao_validade=lab.acreditacao_validade,
+        ativo=lab.ativo,
+        observacoes=lab.observacoes,
+        status_acreditacao=st.status.value,
+        dias_restantes=st.dias_restantes,
     )
 
 
