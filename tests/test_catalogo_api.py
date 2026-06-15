@@ -62,3 +62,10 @@ def test_put_e_delete(client):
     assert r.status_code == 200 and r.json()["preco"] == 99.0
     assert client.delete(f"/api/v1/catalogo/{cat['id']}").status_code == 204
     assert client.get(f"/api/v1/catalogo/{cat['id']}").status_code == 404
+
+
+def test_filtro_tipo_desconhecido_vazio(client):
+    # tipo_id inexistente no filtro retorna lista vazia (não 404)
+    r = client.get("/api/v1/catalogo", params={"tipo_id": 99999})
+    assert r.status_code == 200
+    assert r.json() == {"total": 0, "itens": []}

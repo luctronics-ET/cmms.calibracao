@@ -209,7 +209,7 @@ class Contrato(Base):
         DateTime, server_default=func.now(), onupdate=func.now()
     )
     itens: Mapped[list["ItemContrato"]] = relationship(
-        cascade="all, delete-orphan", order_by="ItemContrato.id"
+        cascade="all, delete-orphan", order_by="ItemContrato.id", back_populates="contrato"
     )
 
 
@@ -226,7 +226,7 @@ class ItemContrato(Base):
     valor_unitario: Mapped[float | None] = mapped_column(Numeric(12, 2))
     usado: Mapped[int] = mapped_column(Integer, default=0)
     observacoes: Mapped[str | None] = mapped_column(String)
-    contrato: Mapped["Contrato | None"] = relationship()
+    contrato: Mapped["Contrato | None"] = relationship(back_populates="itens")
 
 
 class CatalogoPreco(Base):

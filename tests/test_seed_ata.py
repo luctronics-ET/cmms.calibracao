@@ -36,3 +36,19 @@ def test_seed_idempotente_e_matching(client):
     assert db.query(models.ItemContrato).filter_by(contrato_id=contrato.id).count() == 22
     assert db.query(models.CatalogoPreco).count() == n_cat
     db.close()
+
+
+def test_seed_nao_apaga_entrada_manual(client):
+    db = _db(client)
+    seed_dominios(db)
+    seed_ata(db)
+    tipo = db.query(models.TipoInstrumento).first()
+    manual = models.CatalogoPreco(tipo_id=tipo.id, fornecedor="Fornecedor Manual",
+                                  preco=999.0, ativo=True)
+    db.add(manual)
+    db.commit()
+    n_antes = db.query(models.CatalogoPreco).count()
+    seed_ata(db)  # re-run não deve apagar nem duplicar a entrada manual
+    assert db.query(models.CatalogoPreco).count() == n_antes
+    assert db.query(models.CatalogoPreco).filter_by(fornecedor="Fornecedor Manual").count() == 1
+    db.close()
