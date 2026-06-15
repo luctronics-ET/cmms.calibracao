@@ -270,3 +270,63 @@ class LaboratorioOut(BaseModel):
 class ListaLaboratorios(BaseModel):
     total: int
     itens: list[LaboratorioOut]
+
+
+class ItemContratoIn(BaseModel):
+    numero: str | None = None
+    descricao: str | None = None
+    quantidade: int = 0
+    valor_unitario: float | None = None
+    usado: int = 0
+    observacoes: str | None = None
+
+
+class ItemContratoOut(BaseModel):
+    id: int
+    contrato_id: int
+    numero: str | None
+    descricao: str | None
+    quantidade: int
+    valor_unitario: float | None
+    usado: int
+    observacoes: str | None
+    # derivados
+    saldo: int
+    valor_saldo: float
+
+
+class ContratoIn(BaseModel):
+    numero: str
+    tipo: Literal["ATA", "CONTRATO", "CMS"] = "ATA"
+    fornecedor: str | None = None
+    objeto: str | None = None
+    vigencia_inicio: date | None = None
+    vigencia_fim: date | None = None
+    valor_total: float | None = None
+    ativo: bool = True
+    observacoes: str | None = None
+
+
+class ContratoOut(BaseModel):
+    id: int
+    numero: str
+    tipo: str
+    fornecedor: str | None
+    objeto: str | None
+    vigencia_inicio: date | None
+    vigencia_fim: date | None
+    valor_total: float | None
+    ativo: bool
+    observacoes: str | None
+    itens: list[ItemContratoOut]
+    # derivados
+    status_vigencia: str
+    dias_restantes: int | None
+    valor_saldo_total: float
+    saldo_percent: float | None
+    status_saldo: str
+
+
+class ListaContratos(BaseModel):
+    total: int
+    itens: list[ContratoOut]
