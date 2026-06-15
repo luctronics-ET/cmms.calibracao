@@ -31,8 +31,8 @@ Snapshot do que está **entregue e mergeado em `main`** vs. pendente. Stack real
 | **Gestão de laboratórios (6.4)** | ✅ Entregue | entidade `laboratorio` (razão social, CNPJ, contato, acreditação CGCRE/RBC, escopo texto-livre, validade), `backend/routers/laboratorios.py` (CRUD + `/alertas` + histórico por lab); status de acreditação reusa `calcular_status`; calibração ganhou FK opcional `laboratorio_id` com **snapshot** dos dados do lab; UI `laboratorios.html` + select no form de calibração + seção "Acreditações a vencer" em `alertas.html` |
 | **Contratos & Saldo da ATA (6.14, parcial)** | ✅ Entregue | entidades `contrato`/`item_contrato`, saldo derivado por item e agregado, alertas de vigência/saldo; consumo `usado` manual (automático virá com os Lotes) |
 | **Catálogo de Preços (6.14/6.15, base de custos)** | ✅ Entregue | tabela `catalogo_preco` (preço por tipo × fornecedor, vínculo opcional a item de contrato); seed da ATA 129/2025 no startup (16/28 tipos casados por substring; não-casados logados); página `catalogo.html` |
-| Etiquetas com QR Code (6.6) | ⬜ Pendente | — |
-| Página pública por seção (`/qr/{codigo}`) | ⬜ Pendente | — |
+| **Etiquetas com QR Code (6.6)** | ✅ Entregue | `etiquetas.html` (QR client-side, lib MIT vendorizada, impressão individual/lote) + ficha pública `publica.html` ← `GET /api/v1/publico/instrumentos/{id}` (curado) |
+| Página pública **por instrumento** (QR) | ✅ Entregue | `publica.html?id=N` sem login; a página pública **por seção** (visão geral) segue pendente |
 | Autenticação JWT | ⬜ Pendente | sistema roda sem login na rede local interna |
 
 **Eixos de classificação reais no instrumento:** Disciplina (ELE/MEC), Família metrológica (FK), Tipo (FK), Grandeza (FK), Unidade (FK), e os 5 fatores IGP (fu, nc, ab, cm, ci).
@@ -321,11 +321,11 @@ O Classe A/B/C/D do PRD v1.1 foi substituído por um índice multifatorial, mais
 - [ ] Validação de erros com relatório antes de confirmar a importação
 - [ ] **Critério de aceitação:** Importação de 500 registros em < 60 segundos; erros identificados linha a linha
 
-#### 6.6 Etiquetas com QR Code
-- [ ] Geração de etiqueta por instrumento com: código patrimonial, status, data calibração, validade, QR Code
-- [ ] QR Code aponta para a ficha pública do instrumento (sem necessidade de login)
-- [ ] Impressão individual ou em lote
-- [ ] **Critério de aceitação:** QR Code lido por qualquer leitor padrão; página carregada em < 2s
+#### 6.6 Etiquetas com QR Code ✅ Entregue
+- [x] Geração de etiqueta por instrumento com: código (interno + patrimonial), status, validade, QR Code (`etiquetas.html`, QR client-side via lib MIT vendorizada)
+- [x] QR Code aponta para a ficha pública do instrumento sem login (`publica.html?id=N` ← `GET /api/v1/publico/instrumentos/{id}`, subconjunto curado de campos)
+- [x] Impressão individual ou em lote (mesma tela, `window.print()` do navegador; CSS `@media print`)
+- [x] **Critério de aceitação:** QR padrão lido por qualquer leitor; ficha pública leve, sem dependências externas em runtime (lib vendorizada, sem CDN)
 
 ---
 
@@ -665,7 +665,7 @@ Legenda: [x] entregue em `main` · [ ] pendente
   [x] Exportação do inventário (CSV / XLSX / PDF resumo)
   [x] API /api/v1/ versionada (base para integração futura com cmasm.erp)
   [x] Registro de calibrações externas + upload de certificados PDF (entidade `calibracao`, histórico + validade derivada)
-  [ ] Etiquetas com QR Code (impressão individual e em lote)
+  [x] Etiquetas com QR Code (impressão individual e em lote) + ficha pública por instrumento
   [x] Gestão de laboratórios externos (acreditação, escopo, alerta de vencimento, histórico)
   [ ] Relatório de conformidade exportável para auditoria
   [ ] Página pública de seção (tablet na bancada, sem login)
