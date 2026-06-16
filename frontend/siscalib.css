@@ -72,6 +72,10 @@ tbody tr:hover{background:var(--sf2)}
 .bdg.orange{background:var(--orange-bg);color:var(--orange)}
 .bdg.slate{background:var(--slate-bg);color:var(--tx2)}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.tb-header{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tb-header .tb-titulo{font-size:19px;font-weight:700;margin:0 6px 0 0}
+.tb-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:1;justify-content:center}
+.tb-header .tb-busca{min-width:200px}
 input,select{background:var(--sf2);border:1px solid var(--bd);color:var(--tx);
              padding:8px 10px;border-radius:var(--r);font-size:13px}
 input[type=search]{min-width:240px}

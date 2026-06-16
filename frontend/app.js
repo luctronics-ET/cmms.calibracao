@@ -174,11 +174,15 @@ function montarTabela(cfg) {
     `<div class="export-grp"><span class="muted">Exportar:</span>
        <button class="btn ghost" data-exp="csv">CSV</button></div>`;
   cfg.el.innerHTML = `
-    <div class="toolbar">
-      <input type="search" class="tb-busca" placeholder="Buscar...">
-      <button class="btn ghost tb-limpar"><i class="bi bi-funnel"></i> Limpar</button>
-      ${expBtns}
-      <span class="cont-itens tb-cont" style="margin-left:auto"></span>
+    <div class="tb-header">
+      ${cfg.titulo ? `<h1 class="tb-titulo">${esc(cfg.titulo)}</h1>` : ""}
+      <div class="tb-tools">
+        <input type="search" class="tb-busca" placeholder="Buscar...">
+        <button class="btn ghost tb-limpar"><i class="bi bi-funnel"></i> Limpar</button>
+        ${expBtns}
+        <span class="cont-itens tb-cont"></span>
+      </div>
+      ${cfg.headerExtra ? `<span class="tb-extra">${cfg.headerExtra}</span>` : ""}
     </div>
     <div class="twrap"><table class="tb-tab"><thead><tr>
       ${cfg.checkbox ? '<th class="chk"><input type="checkbox" class="tb-all"></th>' : ""}

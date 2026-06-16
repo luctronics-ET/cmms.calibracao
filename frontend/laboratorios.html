@@ -17,10 +17,6 @@
 </head><body class="app">
 <script src="app.js"></script>
 <main class="main">
-  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-    <h1 style="margin:0">Laboratórios</h1>
-    <button class="btn" id="btnNovo"><i class="bi bi-plus-lg"></i> Novo laboratório</button>
-  </div>
   <div id="tabela"></div>
 </main>
 <script>
@@ -28,6 +24,8 @@ montarShell("laboratorios.html");
 
 const tabela = montarTabela({
   el: document.getElementById("tabela"),
+  titulo: "Laboratórios",
+  headerExtra: '<button class="btn" id="btnNovo"><i class="bi bi-plus-lg"></i> Novo laboratório</button>',
   exportNome: "laboratorios",
   checkbox: true,
   colunas: [

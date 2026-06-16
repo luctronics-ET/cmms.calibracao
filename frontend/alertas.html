@@ -9,14 +9,9 @@
 </head><body class="app">
 <script src="app.js"></script>
 <main class="main">
-  <h1>Painel de Alertas</h1>
   <div id="tabAlertas"></div>
-
-  <h1 style="margin-top:28px">Acreditações a vencer</h1>
-  <div id="tabLab"></div>
-
-  <h1 style="margin-top:28px">Contratos a vencer / saldo baixo</h1>
-  <div id="tabCt"></div>
+  <div id="tabLab" style="margin-top:28px"></div>
+  <div id="tabCt" style="margin-top:28px"></div>
 </main>
 <script>
 montarShell("alertas.html");
@@ -25,6 +20,7 @@ const ST_ORDEM = ["VENCIDO", "A_VENCER_7", "A_VENCER_30", "A_VENCER_60", "VALIDO
 
 const tabAlertas = montarTabela({
   el: document.getElementById("tabAlertas"),
+  titulo: "Painel de Alertas",
   exportNome: "alertas",
   buscaValor: i => [i.codigo_interno, i.equipamento, i.setor].filter(Boolean).join(" "),
   colunas: [
@@ -40,6 +36,7 @@ const tabAlertas = montarTabela({
 
 const tabLab = montarTabela({
   el: document.getElementById("tabLab"),
+  titulo: "Acreditações a vencer",
   exportNome: "acreditacoes-a-vencer",
   buscaValor: l => l.razao_social || "",
   colunas: [
@@ -52,6 +49,7 @@ const tabLab = montarTabela({
 
 const tabCt = montarTabela({
   el: document.getElementById("tabCt"),
+  titulo: "Contratos a vencer / saldo baixo",
   exportNome: "contratos-a-vencer",
   buscaValor: c => [c.numero, c.laboratorio].filter(Boolean).join(" "),
   colunas: [

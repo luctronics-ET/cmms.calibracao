@@ -24,10 +24,8 @@
     <h1 style="margin:0">Contratos &amp; Saldo da ATA</h1>
     <button class="btn" id="btnNovo"><i class="bi bi-plus-lg"></i> Novo contrato</button>
   </div>
-  <h2 style="font-size:15px;margin:8px 0">Vigentes</h2>
   <div id="tabVig"></div>
-  <h2 style="font-size:15px;margin:18px 0 8px;color:var(--tx2)">Finalizados</h2>
-  <div id="tabFin"></div>
+  <div id="tabFin" style="margin-top:18px"></div>
 </main>
 <script>
 montarShell("contratos.html");
@@ -56,9 +54,9 @@ const acoesContrato = c => `<button class="btn ghost ct-open" data-id="${c.id}" 
     <button class="btn ghost ct-edit" data-id="${c.id}" style="padding:2px 8px">Editar</button>
     <button class="btn ghost ct-del" data-id="${c.id}" style="padding:2px 8px">Excluir</button>`;
 
-const tabVig = montarTabela({ el: document.getElementById("tabVig"), exportNome: "contratos-vigentes",
+const tabVig = montarTabela({ el: document.getElementById("tabVig"), titulo: "Vigentes", exportNome: "contratos-vigentes",
   buscaValor: c => [c.numero, c.laboratorio, c.tipo].filter(Boolean).join(" "), colunas: colsContrato(), acoes: acoesContrato });
-const tabFin = montarTabela({ el: document.getElementById("tabFin"), exportNome: "contratos-finalizados",
+const tabFin = montarTabela({ el: document.getElementById("tabFin"), titulo: "Finalizados", exportNome: "contratos-finalizados",
   buscaValor: c => [c.numero, c.laboratorio, c.tipo].filter(Boolean).join(" "), colunas: colsContrato(), acoes: acoesContrato });
 
 document.querySelector("main").addEventListener("click", async (e) => {

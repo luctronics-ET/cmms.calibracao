@@ -9,8 +9,6 @@
 </head><body class="app">
 <script src="app.js"></script>
 <main class="main">
-  <h1>Catálogo de Calibração</h1>
-  <p class="muted" style="margin:-6px 0 12px">Serviços de calibração dos contratos — preço, saldo e vigência por laboratório.</p>
   <div id="tabela"></div>
 </main>
 <script>
@@ -23,6 +21,7 @@ const VIG_ORDEM = ["VENCIDO", "A_VENCER_7", "A_VENCER_30", "A_VENCER_60", "VALID
 
 const tabela = montarTabela({
   el: document.getElementById("tabela"),
+  titulo: "Catálogo de Calibração",
   exportNome: "catalogo",
   buscaValor: r => [r.laboratorio, r.contrato_numero, r.descricao].filter(Boolean).join(" "),
   colunas: [
