@@ -98,7 +98,7 @@ class Instrumento(Base):
     grandeza_id: Mapped[int | None] = mapped_column(ForeignKey("grandeza.id"))
     unidade_id: Mapped[int | None] = mapped_column(ForeignKey("unidade_medida.id"))
     # localização
-    sistema: Mapped[str | None] = mapped_column(String, index=True)
+    setor: Mapped[str | None] = mapped_column(String, index=True)
     organizacao: Mapped[str | None] = mapped_column(String)
     unidade_org: Mapped[str | None] = mapped_column(String)
     secao: Mapped[str | None] = mapped_column(String)
@@ -138,7 +138,7 @@ class Instrumento(Base):
     grandeza: Mapped["Grandeza | None"] = relationship()
     unidade: Mapped["UnidadeMedida | None"] = relationship()
     calibracoes: Mapped[list["Calibracao"]] = relationship(
-        cascade="all, delete-orphan", passive_deletes=True
+        cascade="all, delete-orphan", passive_deletes=True, back_populates="instrumento"
     )
 
 
@@ -151,6 +151,9 @@ class Calibracao(Base):
     )
     laboratorio_id: Mapped[int | None] = mapped_column(
         ForeignKey("laboratorio.id", ondelete="SET NULL"), index=True
+    )
+    item_contrato_id: Mapped[int | None] = mapped_column(
+        ForeignKey("item_contrato.id", ondelete="SET NULL"), index=True
     )
     data_calibracao: Mapped[Date] = mapped_column(Date)
     data_validade: Mapped[Date | None] = mapped_column(Date)
@@ -167,6 +170,8 @@ class Calibracao(Base):
     origem: Mapped[str] = mapped_column(String, default="MANUAL")
     observacoes: Mapped[str | None] = mapped_column(String)
     criado_em: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    item_contrato: Mapped["ItemContrato | None"] = relationship()
+    instrumento: Mapped["Instrumento"] = relationship(back_populates="calibracoes")
 
 
 class Laboratorio(Base):
@@ -197,7 +202,9 @@ class Contrato(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     numero: Mapped[str] = mapped_column(String)
     tipo: Mapped[ContratoTipo] = mapped_column(Enum(ContratoTipo), default=ContratoTipo.ATA)
-    fornecedor: Mapped[str | None] = mapped_column(String)
+    laboratorio_id: Mapped[int] = mapped_column(
+        ForeignKey("laboratorio.id", ondelete="RESTRICT"), index=True, nullable=False
+    )
     objeto: Mapped[str | None] = mapped_column(String)
     vigencia_inicio: Mapped[Date | None] = mapped_column(Date)
     vigencia_fim: Mapped[Date | None] = mapped_column(Date)
@@ -211,6 +218,7 @@ class Contrato(Base):
     itens: Mapped[list["ItemContrato"]] = relationship(
         cascade="all, delete-orphan", order_by="ItemContrato.id", back_populates="contrato"
     )
+    laboratorio: Mapped["Laboratorio | None"] = relationship()
 
 
 class ItemContrato(Base):
@@ -229,23 +237,5 @@ class ItemContrato(Base):
     contrato: Mapped["Contrato | None"] = relationship(back_populates="itens")
 
 
-class CatalogoPreco(Base):
-    __tablename__ = "catalogo_preco"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    tipo_id: Mapped[int] = mapped_column(
-        ForeignKey("tipo_instrumento.id"), index=True
-    )
-    fornecedor: Mapped[str | None] = mapped_column(String)
-    preco: Mapped[float | None] = mapped_column(Numeric(12, 2))
-    item_contrato_id: Mapped[int | None] = mapped_column(
-        ForeignKey("item_contrato.id", ondelete="SET NULL"), index=True
-    )
-    ativo: Mapped[bool] = mapped_column(Boolean, default=True)
-    observacoes: Mapped[str | None] = mapped_column(String)
-    criado_em: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    atualizado_em: Mapped[datetime] = mapped_column(
-        DateTime, server_default=func.now(), onupdate=func.now()
-    )
-    tipo: Mapped["TipoInstrumento | None"] = relationship()
-    item_contrato: Mapped["ItemContrato | None"] = relationship()
+# CatalogoPreco removido: o catálogo agora é uma visão derivada dos itens de
+# contrato (ver routers/catalogo.py + servico.catalogo_item_para_out).

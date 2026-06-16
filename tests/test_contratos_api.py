@@ -1,13 +1,33 @@
 from datetime import date, timedelta
 
 
+def _cria_lab(client, razao="MQT Serviços Metrológicos Ltda"):
+    r = client.post("/api/v1/laboratorios", json={"razao_social": razao})
+    assert r.status_code == 201
+    return r.json()
+
+
 def _cria_contrato(client, **over):
-    body = {"numero": "ATA MQT 129/2025", "tipo": "ATA", "fornecedor": "MQT Serviços",
-            "valor_total": 1000.0}
+    if "laboratorio_id" not in over:
+        over["laboratorio_id"] = _cria_lab(client, razao="Lab " + str(over.get("numero", "ATA")))["id"]
+    body = {"numero": "ATA MQT 129/2025", "tipo": "ATA", "valor_total": 1000.0}
     body.update(over)
     r = client.post("/api/v1/contratos", json=body)
     assert r.status_code == 201
     return r.json()
+
+
+def test_contrato_vinculado_a_laboratorio(client):
+    lab = _cria_lab(client)
+    c = _cria_contrato(client, laboratorio_id=lab["id"])
+    assert c["laboratorio_id"] == lab["id"]
+    assert c["laboratorio"] == "MQT Serviços Metrológicos Ltda"
+
+
+def test_contrato_laboratorio_inexistente_404(client):
+    r = client.post("/api/v1/contratos",
+                    json={"numero": "X", "tipo": "ATA", "laboratorio_id": 99999})
+    assert r.status_code == 404
 
 
 def _add_item(client, cid, **over):

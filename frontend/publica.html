@@ -34,7 +34,7 @@
   try { i = await SDK.get("/publico/instrumentos/" + id); }
   catch (err) { corpo.innerHTML = `<p class="sev-erro">Instrumento não encontrado</p>`; return; }
 
-  const loc = [i.secao, i.sistema].filter(Boolean).map(esc).join(" · ") || "—";
+  const loc = [i.secao, i.setor].filter(Boolean).map(esc).join(" · ") || "—";
   const tmm = [i.tipo_nome, i.marca, i.modelo].filter(Boolean).map(esc).join(" · ") || "—";
   const dias = i.dias_restantes != null ? ` <span class="muted">(${i.dias_restantes} dias)</span>` : "";
 

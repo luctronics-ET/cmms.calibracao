@@ -88,7 +88,7 @@ def test_kpis(client):
     assert k["total"] == 3
     assert k["vencidos"] == 1      # A-1
     assert k["sem_data"] == 1      # A-3
-    assert k["n_sistemas"] == 2    # MK-48, F-21
+    assert k["n_setores"] == 2    # MK-48, F-21
     assert any(s["status"] == "VENCIDO" and s["total"] == 1 for s in k["por_status"])
 
 

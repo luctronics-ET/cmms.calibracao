@@ -28,7 +28,7 @@ class InstrumentoOut(BaseModel):
     grandeza_nome: str | None
     unidade_id: int | None
     unidade_simbolo: str | None
-    sistema: str | None
+    setor: str | None
     organizacao: str | None
     unidade_org: str | None
     secao: str | None
@@ -78,7 +78,7 @@ class InstrumentoIn(BaseModel):
     disciplina: str | None = None
     grandeza_id: int | None = None
     unidade_id: int | None = None
-    sistema: str | None = None
+    setor: str | None = None
     organizacao: str | None = None
     unidade_org: str | None = None
     secao: str | None = None
@@ -115,7 +115,7 @@ class InstrumentoPatch(BaseModel):
     disciplina: str | None = None
     grandeza_id: int | None = None
     unidade_id: int | None = None
-    sistema: str | None = None
+    setor: str | None = None
     organizacao: str | None = None
     unidade_org: str | None = None
     secao: str | None = None
@@ -192,6 +192,7 @@ class CalibracaoIn(BaseModel):
     """Entrada de registro de calibração. validade/ciclo/status são derivados no servidor."""
     data_calibracao: date
     laboratorio_id: int | None = None
+    item_contrato_id: int | None = None  # vincula a item de contrato vigente (consome saldo)
     resultado: Literal["APROVADO", "APROVADO_COM_RESTRICOES", "REPROVADO"] = "APROVADO"
     laboratorio: str | None = None
     laboratorio_cnpj: str | None = None
@@ -207,6 +208,8 @@ class CalibracaoOut(BaseModel):
     id: int
     instrumento_id: int
     laboratorio_id: int | None
+    item_contrato_id: int | None
+    contrato_numero: str | None  # derivado (via item)
     data_calibracao: date
     data_validade: date | None
     ciclo_meses: int
@@ -231,6 +234,26 @@ class ListaCalibracoes(BaseModel):
 class RegistroCalibracaoOut(BaseModel):
     instrumento: InstrumentoOut
     calibracao: CalibracaoOut
+
+
+class CalibracaoRecenteOut(BaseModel):
+    """Item da lista global de calibrações (landing de calibracao.html)."""
+    id: int
+    instrumento_id: int
+    instrumento_codigo: str | None
+    instrumento_equipamento: str | None
+    data_calibracao: date
+    data_validade: date | None
+    resultado: str
+    laboratorio: str | None
+    custo: float | None
+    contrato_numero: str | None
+    origem: str
+
+
+class ListaCalibracoesRecentes(BaseModel):
+    total: int
+    itens: list[CalibracaoRecenteOut]
 
 
 class LaboratorioIn(BaseModel):
@@ -298,7 +321,7 @@ class ItemContratoOut(BaseModel):
 class ContratoIn(BaseModel):
     numero: str
     tipo: Literal["ATA", "CONTRATO", "CMS"] = "ATA"
-    fornecedor: str | None = None
+    laboratorio_id: int  # contrato sempre tem um laboratório (fornecedor)
     objeto: str | None = None
     vigencia_inicio: date | None = None
     vigencia_fim: date | None = None
@@ -311,7 +334,8 @@ class ContratoOut(BaseModel):
     id: int
     numero: str
     tipo: str
-    fornecedor: str | None
+    laboratorio_id: int | None
+    laboratorio: str | None  # razão social (derivado)
     objeto: str | None
     vigencia_inicio: date | None
     vigencia_fim: date | None
@@ -332,33 +356,30 @@ class ListaContratos(BaseModel):
     itens: list[ContratoOut]
 
 
-class CatalogoPrecoIn(BaseModel):
-    tipo_id: int
-    fornecedor: str | None = None
-    preco: float | None = None
-    item_contrato_id: int | None = None
-    ativo: bool = True
-    observacoes: str | None = None
-
-
-class CatalogoPrecoOut(BaseModel):
-    id: int
-    tipo_id: int
-    fornecedor: str | None
-    preco: float | None
-    item_contrato_id: int | None
-    ativo: bool
-    observacoes: str | None
-    # derivados
-    tipo_nome: str | None
+class CatalogoItemOut(BaseModel):
+    """Linha do catálogo = item (serviço de calibração) de um contrato.
+    Visão derivada dos contratos: preço, saldo, vigência por laboratório."""
+    item_id: int
     item_numero: str | None
-    contrato_id: int | None
-    contrato_numero: str | None
+    descricao: str | None          # serviço (ex.: CALIBRAÇÃO DE MULTÍMETRO)
+    laboratorio_id: int | None
+    laboratorio: str | None
+    contrato_id: int
+    contrato_numero: str
+    contrato_tipo: str
+    preco: float | None            # valor_unitário do item
+    quantidade: int
+    usado: int
+    saldo: int
+    valor_saldo: float
+    vigencia_fim: date | None
+    status_vigencia: str
+    vigente: bool                  # contrato não-vencido + item com saldo
 
 
-class ListaCatalogo(BaseModel):
+class ListaCatalogoItens(BaseModel):
     total: int
-    itens: list[CatalogoPrecoOut]
+    itens: list[CatalogoItemOut]
 
 
 class InstrumentoPublicoOut(BaseModel):
@@ -370,7 +391,7 @@ class InstrumentoPublicoOut(BaseModel):
     modelo: str | None
     tipo_nome: str | None
     secao: str | None
-    sistema: str | None
+    setor: str | None
     status: str
     status_label: str
     status_operacional: str

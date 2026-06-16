@@ -16,7 +16,7 @@ MAPA_COLUNAS = {
     "unidade range": "unidade_faixa",
     "cod interno": "codigo_interno",
     "serial": "serial",
-    "divisão": "sistema",
+    "divisão": "setor",
     "ciclo calibração": "ciclo_meses",
     "ultima calibração": "data_ultima_calibracao",
     "última calibração": "data_ultima_calibracao",

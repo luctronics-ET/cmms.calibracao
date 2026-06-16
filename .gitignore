@@ -4,3 +4,4 @@ __pycache__/
 .venv/
 data/*.db
 data/uploads/
+.playwright-mcp/

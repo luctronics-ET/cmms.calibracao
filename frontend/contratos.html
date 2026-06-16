@@ -24,32 +24,37 @@
     <button class="btn" id="btnNovo"><i class="bi bi-plus-lg"></i> Novo contrato</button>
   </div>
   <div class="muted" id="cont" style="margin:10px 0 8px"></div>
-  <div class="twrap"><table id="tab"><thead><tr>
+
+  <h2 style="font-size:15px;margin:8px 0">Vigentes</h2>
+  <div class="twrap"><table id="tabVig"><thead><tr>
+    <th>Número</th><th>Tipo</th><th>Fornecedor</th><th>Vigência</th>
+    <th>Valor total</th><th>Saldo</th><th>Ações</th></tr></thead><tbody></tbody></table></div>
+
+  <h2 style="font-size:15px;margin:18px 0 8px;color:var(--tx2)">Finalizados</h2>
+  <div class="twrap"><table id="tabFin"><thead><tr>
     <th>Número</th><th>Tipo</th><th>Fornecedor</th><th>Vigência</th>
     <th>Valor total</th><th>Saldo</th><th>Ações</th></tr></thead><tbody></tbody></table></div>
 </main>
 <script>
 montarShell("contratos.html");
 const cont = document.getElementById("cont");
-const tbody = document.querySelector("#tab tbody");
+const tbodyVig = document.querySelector("#tabVig tbody");
+const tbodyFin = document.querySelector("#tabFin tbody");
 
 function money(n) {
   return "R$ " + Number(n || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-async function carregar() {
-  let dados;
-  try { dados = await SDK.get("/contratos"); }
-  catch (err) {
-    tbody.innerHTML = `<tr><td colspan="7" class="sev-erro">Falha ao carregar: ${esc(err.message)}</td></tr>`;
-    return;
-  }
-  cont.textContent = `${dados.total} contrato(s)`;
-  tbody.innerHTML = dados.itens.map(c => `
-    <tr>
+// Finalizado = vencido OU saldo esgotado. Vigente = o resto.
+function ehFinalizado(c) {
+  return c.status_vigencia === "VENCIDO" || c.status_saldo === "ESGOTADO";
+}
+
+function linhaContrato(c) {
+  return `<tr>
       <td>${esc(c.numero)}</td>
       <td>${esc(c.tipo)}</td>
-      <td>${esc(c.fornecedor) || "—"}</td>
+      <td>${esc(c.laboratorio) || "—"}</td>
       <td>${fmtData(c.vigencia_fim)} ${badgeStatus(c.status_vigencia)}</td>
       <td>${money(c.valor_total)}</td>
       <td>${money(c.valor_saldo_total)} <span class="bdg saldo-${esc(c.status_saldo)}">${esc(c.status_saldo)}</span></td>
@@ -58,8 +63,10 @@ async function carregar() {
         <button class="btn ghost ct-edit" data-id="${c.id}" style="padding:2px 8px">Editar</button>
         <button class="btn ghost ct-del" data-id="${c.id}" style="padding:2px 8px">Excluir</button>
       </td>
-    </tr>`).join("") || `<tr><td colspan="7" class="muted">Nenhum contrato cadastrado.</td></tr>`;
+    </tr>`;
+}
 
+function bindAcoes(tbody) {
   tbody.querySelectorAll(".ct-open").forEach(b => b.onclick = () => abrirDetalhe(Number(b.dataset.id)));
   tbody.querySelectorAll(".ct-edit").forEach(b => b.onclick = () => abrirForm(Number(b.dataset.id)));
   tbody.querySelectorAll(".ct-del").forEach(b => b.onclick = async () => {
@@ -70,16 +77,37 @@ async function carregar() {
   });
 }
 
+async function carregar() {
+  let dados;
+  try { dados = await SDK.get("/contratos"); }
+  catch (err) {
+    tbodyVig.innerHTML = `<tr><td colspan="7" class="sev-erro">Falha ao carregar: ${esc(err.message)}</td></tr>`;
+    return;
+  }
+  cont.textContent = `${dados.total} contrato(s)`;
+  const vig = dados.itens.filter(c => !ehFinalizado(c));
+  const fin = dados.itens.filter(ehFinalizado);
+  tbodyVig.innerHTML = vig.map(linhaContrato).join("") ||
+    `<tr><td colspan="7" class="muted">Nenhum contrato vigente.</td></tr>`;
+  tbodyFin.innerHTML = fin.map(linhaContrato).join("") ||
+    `<tr><td colspan="7" class="muted">Nenhum contrato finalizado.</td></tr>`;
+  bindAcoes(tbodyVig);
+  bindAcoes(tbodyFin);
+}
+
 // ── Formulário de contrato (Novo/Editar) ────────────────────────────────────
-function formHtml(c) {
+function formHtml(c, labs) {
   c = c || {};
+  labs = labs || [];
   const tipo = c.tipo || "ATA";
   const opt = (v) => `<option value="${v}"${tipo === v ? " selected" : ""}>${v}</option>`;
+  const optLab = (l) => `<option value="${l.id}"${c.laboratorio_id === l.id ? " selected" : ""}>${esc(l.razao_social)}</option>`;
   return `<form class="ct-form" id="ctForm">
     <div class="grid2-ct">
       <div class="fld req"><label>Número</label><input name="numero" value="${esc(c.numero)}" required></div>
       <div class="fld"><label>Tipo</label><select name="tipo">${opt("ATA")}${opt("CONTRATO")}${opt("CMS")}</select></div>
-      <div class="fld"><label>Fornecedor</label><input name="fornecedor" value="${esc(c.fornecedor)}"></div>
+      <div class="fld"><label>Fornecedor (laboratório)</label>
+        <select name="laboratorio_id"><option value="">— selecione —</option>${labs.map(optLab).join("")}</select></div>
       <div class="fld"><label>Valor total</label><input name="valor_total" type="number" step="any" value="${c.valor_total != null ? esc(c.valor_total) : ""}"></div>
       <div class="fld"><label>Início da vigência</label><input name="vigencia_inicio" type="date" value="${esc(c.vigencia_inicio)}"></div>
       <div class="fld"><label>Fim da vigência</label><input name="vigencia_fim" type="date" value="${esc(c.vigencia_fim)}"></div>
@@ -97,8 +125,10 @@ async function abrirForm(id) {
     try { ct = await SDK.get("/contratos/" + id); }
     catch (err) { alert("Falha ao carregar contrato: " + err.message); return; }
   }
+  let labs = [];
+  try { labs = (await SDK.get("/laboratorios")).itens; } catch (e) { /* lista vazia */ }
   const titulo = id != null ? "Editar contrato" : "Novo contrato";
-  const ov = abrirModal(titulo, formHtml(ct),
+  const ov = abrirModal(titulo, formHtml(ct, labs),
     `<button class="btn ghost" id="ctCancel" type="button">Cancelar</button>
      <button class="btn" id="ctSalvar" type="button">Salvar</button>`);
   const form = ov.querySelector("#ctForm");
@@ -112,7 +142,7 @@ async function abrirForm(id) {
     const body = {
       numero: form.numero.value.trim(),
       tipo: form.tipo.value,
-      fornecedor: form.fornecedor.value.trim() || null,
+      laboratorio_id: form.laboratorio_id.value ? Number(form.laboratorio_id.value) : null,
       objeto: form.objeto.value.trim() || null,
       vigencia_inicio: form.vigencia_inicio.value || null,
       vigencia_fim: form.vigencia_fim.value || null,
@@ -138,7 +168,7 @@ async function abrirForm(id) {
 function detalheHtml(c) {
   const meta = [
     ["Tipo", esc(c.tipo)],
-    ["Fornecedor", esc(c.fornecedor) || "—"],
+    ["Fornecedor (lab)", esc(c.laboratorio) || "—"],
     ["Vigência", `${fmtData(c.vigencia_inicio)} … ${fmtData(c.vigencia_fim)} ${badgeStatus(c.status_vigencia)}`],
     ["Valor total", money(c.valor_total)],
     ["Saldo", `${money(c.valor_saldo_total)} <span class="bdg saldo-${esc(c.status_saldo)}">${esc(c.status_saldo)}</span>`],

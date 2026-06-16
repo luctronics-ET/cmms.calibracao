@@ -1,9 +1,8 @@
-"""Seed idempotente da ATA 129/2025 (contrato + itens + catálogo). Roda no startup."""
+"""Seed idempotente da ATA 129/2025 (laboratório + contrato + itens). Roda no startup."""
 from __future__ import annotations
-import unicodedata
 from backend.db import SessionLocal
 from backend.models import (
-    Contrato, ItemContrato, CatalogoPreco, TipoInstrumento, ContratoTipo,
+    Contrato, ItemContrato, ContratoTipo, Laboratorio,
 )
 
 _ATA = {"numero": "ATA MQT 129/2025", "fornecedor": "MQT Serviços Metrológicos Ltda",
@@ -35,71 +34,27 @@ _ATA_ITENS = [
     {"item": 35, "desc": "CALIBRAÇÃO DE TORQUÍMETRO", "quant": 520, "valor": 70.0, "usado": 264},
 ]
 
-# Transcrito de CATALOG_DEFAULT (linhas 1699-1908): { "TIPO": [ {forn, preco, item, tipo}, ... ] }
-_CATALOG = {
-    "TORQUÍMETRO": [{"forn": "MQT Serviços", "preco": 70.0, "item": "35", "tipo": "ata"}],
-    "MULTÍMETRO": [
-        {"forn": "MQT Serviços", "preco": 165.0, "item": "14", "tipo": "ata"},
-        {"forn": "CMS (interno)", "preco": 243.67, "item": None, "tipo": "interno"},
-    ],
-    "MANÔMETRO ANALÓGICO": [{"forn": "MQT Serviços", "preco": 65.0, "item": "26", "tipo": "ata"}],
-    "MANÔMETRO ANALÓGICO  BACS": [{"forn": "MQT Serviços", "preco": 140.0, "item": "27", "tipo": "ata"}],
-    "MICROMETRO DE PROFUNDIDADE": [{"forn": "MQT Serviços", "preco": 85.0, "item": "31", "tipo": "ata"}],
-    "PAQUÍMETRO": [{"forn": "MQT Serviços", "preco": 45.0, "item": "33", "tipo": "ata"}],
-    "CONTADOR": [{"forn": "MQT Serviços", "preco": 450.0, "item": "5", "tipo": "ata"}],
-    "FONTE DC": [
-        {"forn": "MQT Serviços", "preco": 180.0, "item": "9", "tipo": "ata"},
-        {"forn": "MQT (AMETEK propr.)", "preco": 350.0, "item": "10", "tipo": "ata"},
-    ],
-    "OSCILOSCÓPIO": [{"forn": "MQT Serviços", "preco": 475.0, "item": "18", "tipo": "ata"}],
-    "MEGÔHMETRO": [{"forn": "MQT Serviços", "preco": 260.0, "item": "13", "tipo": "ata"}],
-    "GERADOR DE FUNÇÕES": [{"forn": "MQT Serviços", "preco": 410.0, "item": "11", "tipo": "ata"}],
-    "OHMÍMETRO": [{"forn": "MQT Serviços", "preco": 456.0, "item": "17", "tipo": "ata"}],
-    "DINAMÔMETRO": [{"forn": "MQT Serviços", "preco": 240.0, "item": "23", "tipo": "ata"}],
-    "DINAMÔMETRO DIGITAL": [{"forn": "MQT Serviços", "preco": 228.0, "item": "24", "tipo": "ata"}],
-    "MANÔMETRO DIGITAL": [{"forn": "MQT Serviços", "preco": 70.0, "item": "28", "tipo": "ata"}],
-    "MANOVACUÔMETRO ANALÓGICO": [{"forn": "MQT Serviços", "preco": 133.0, "item": "29", "tipo": "ata"}],
-    "MEDIDOR DE FLUXO / VALVULA DE ALIVIO": [{"forn": "MQT Serviços", "preco": 199.0, "item": "30", "tipo": "ata"}],
-    "VÁLVULA DE ALÍVIO": [{"forn": "MQT Serviços", "preco": 199.0, "item": "30", "tipo": "ata"}],
-    "NÍVEL LINEAR DE PRECISÃO": [{"forn": "MQT Serviços", "preco": 80.0, "item": "32", "tipo": "ata"}],
-    "TERMÔMETRO": [{"forn": "MQT Serviços", "preco": 65.0, "item": "34", "tipo": "ata"}],
-    "TERMÔMETRO DIGITAL": [{"forn": "MQT Serviços", "preco": 65.0, "item": "34", "tipo": "ata"}],
-    "DIFFERENTIAL PROBE": [{"forn": "MQT Serviços", "preco": 322.0, "item": "7", "tipo": "ata"}],
-    "ALICATE AMPERÍMETRO": [{"forn": "MQT Serviços", "preco": 240.0, "item": "1", "tipo": "ata"}],
-    "IGNITER CIRCUIT TEST": [{"forn": "CMS (interno)", "preco": 483.5, "item": None, "tipo": "interno"}],
-    "GROUND STRAP TESTER": [{"forn": "CMS (interno)", "preco": 322.24, "item": None, "tipo": "interno"}],
-    "ANALISADOR DE SEGURANÇA": [{"forn": "CMS (interno)", "preco": 967.01, "item": None, "tipo": "interno"}],
-    "ANALISADOR DE ESPECTRO": [{"forn": "CMASM (interno)", "preco": 1450.51, "item": None, "tipo": "interno"}],
-    "BALANÇA DIGITAL": [{"forn": "Visomes", "preco": 320.0, "item": None, "tipo": "ata"}],
-}
-
-
-def _norm(s: str) -> str:
-    s = unicodedata.normalize("NFKD", s or "")
-    s = "".join(c for c in s if not unicodedata.combining(c))
-    return s.lower().replace(" ", "")
-
-
-def _match_tipo(db, chave: str, tipos: list[TipoInstrumento]) -> TipoInstrumento | None:
-    """Acha o TipoInstrumento cujo nome normalizado esteja CONTIDO na chave do catálogo.
-    Em empate, o nome de domínio mais longo vence."""
-    alvo = _norm(chave)
-    candidatos = [t for t in tipos if _norm(t.nome) and _norm(t.nome) in alvo]
-    if not candidatos:
-        return None
-    return max(candidatos, key=lambda t: len(_norm(t.nome)))
 
 
 def seed_ata(db) -> dict:
-    contagem = {"contrato": 0, "itens": 0, "catalogo": 0, "tipos_nao_casados": []}
+    contagem = {"contrato": 0, "itens": 0}
+
+    # fornecedor do contrato = laboratório (get-or-create por razão social)
+    lab = db.query(Laboratorio).filter_by(razao_social=_ATA["fornecedor"]).first()
+    if lab is None:
+        lab = Laboratorio(razao_social=_ATA["fornecedor"], ativo=True)
+        db.add(lab)
+        db.flush()
 
     contrato = db.query(Contrato).filter_by(numero=_ATA["numero"]).first()
     if contrato is None:
         contrato = Contrato(numero=_ATA["numero"], tipo=ContratoTipo.ATA,
-                            fornecedor=_ATA["fornecedor"], valor_total=_ATA["teto"], ativo=True)
+                            laboratorio_id=lab.id, valor_total=_ATA["teto"], ativo=True)
         db.add(contrato)
         db.flush()
         contagem["contrato"] = 1
+    elif contrato.laboratorio_id is None:
+        contrato.laboratorio_id = lab.id
 
     itens_por_numero = {i.numero: i for i in
                         db.query(ItemContrato).filter_by(contrato_id=contrato.id).all()}
@@ -114,29 +69,7 @@ def seed_ata(db) -> dict:
         itens_por_numero[num] = novo
         contagem["itens"] += 1
 
-    tipos = db.query(TipoInstrumento).all()
-    existentes = {(c.tipo_id, c.fornecedor, c.item_contrato_id)
-                  for c in db.query(CatalogoPreco).all()}
-    nao_casados = set()
-    for chave, opcoes in _CATALOG.items():
-        tipo = _match_tipo(db, chave, tipos)
-        if tipo is None:
-            nao_casados.add(chave)
-            continue
-        for o in opcoes:
-            item_id = None
-            if o.get("item"):
-                item = itens_por_numero.get(str(o["item"]))
-                item_id = item.id if item else None
-            chave_unica = (tipo.id, o.get("forn"), item_id)
-            if chave_unica in existentes:
-                continue
-            db.add(CatalogoPreco(tipo_id=tipo.id, fornecedor=o.get("forn"),
-                                 preco=o.get("preco"), item_contrato_id=item_id, ativo=True))
-            existentes.add(chave_unica)
-            contagem["catalogo"] += 1
-
-    contagem["tipos_nao_casados"] = sorted(nao_casados)
+    # catálogo não é mais semeado: virou visão derivada dos itens de contrato.
     db.commit()
     return contagem
 
@@ -145,10 +78,7 @@ def main() -> None:
     db = SessionLocal()
     try:
         r = seed_ata(db)
-        print(f"seed_ata: contrato={r['contrato']} itens={r['itens']} "
-              f"catalogo={r['catalogo']} nao_casados={len(r['tipos_nao_casados'])}")
-        if r["tipos_nao_casados"]:
-            print("  tipos sem match no domínio:", ", ".join(r["tipos_nao_casados"]))
+        print(f"seed_ata: contrato={r['contrato']} itens={r['itens']}")
     finally:
         db.close()
 

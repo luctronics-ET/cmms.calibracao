@@ -1,71 +1,50 @@
-def _tipo_id(client):
-    return client.get("/api/v1/dominios").json()["tipos"][0]["id"]
+from datetime import date, timedelta
 
 
-def _cria_contrato_item(client):
-    c = client.post("/api/v1/contratos", json={"numero": "ATA X", "tipo": "ATA"}).json()
-    client.post(f"/api/v1/contratos/{c['id']}/itens",
-                json={"numero": "14", "descricao": "Cal multímetro",
-                      "quantidade": 10, "valor_unitario": 50.0, "usado": 0})
-    c = client.get(f"/api/v1/contratos/{c['id']}").json()
-    return c["id"], c["numero"], c["itens"][0]["id"], c["itens"][0]["numero"]
+def _lab_contrato_item(client, dias_fim=400, quantidade=10, usado=0, valor=50.0):
+    lab = client.post("/api/v1/laboratorios", json={"razao_social": "Lab Cat"}).json()
+    fim = str(date.today() + timedelta(days=dias_fim))
+    c = client.post("/api/v1/contratos", json={
+        "numero": "ATA C", "tipo": "ATA", "laboratorio_id": lab["id"],
+        "valor_total": 1000.0, "vigencia_fim": fim}).json()
+    client.post(f"/api/v1/contratos/{c['id']}/itens", json={
+        "numero": "14", "descricao": "CALIBRAÇÃO DE MULTÍMETRO",
+        "quantidade": quantidade, "valor_unitario": valor, "usado": usado})
+    return lab, client.get(f"/api/v1/contratos/{c['id']}").json()
 
 
-def test_cria_e_lista_catalogo(client):
-    tid = _tipo_id(client)
-    r = client.post("/api/v1/catalogo", json={"tipo_id": tid, "fornecedor": "MQT", "preco": 165.0})
-    assert r.status_code == 201
-    body = client.get("/api/v1/catalogo").json()
-    assert body["total"] == 1
-    assert body["itens"][0]["tipo_nome"] is not None
-    assert body["itens"][0]["preco"] == 165.0
-
-
-def test_filtro_por_tipo(client):
-    tipos = client.get("/api/v1/dominios").json()["tipos"]
-    a, b = tipos[0]["id"], tipos[1]["id"]
-    client.post("/api/v1/catalogo", json={"tipo_id": a, "preco": 10.0})
-    client.post("/api/v1/catalogo", json={"tipo_id": b, "preco": 20.0})
-    r = client.get("/api/v1/catalogo", params={"tipo_id": a})
-    assert r.json()["total"] == 1
-    assert r.json()["itens"][0]["tipo_id"] == a
-
-
-def test_vinculo_item_popula_derivados(client):
-    tid = _tipo_id(client)
-    cid, cnum, item_id, item_num = _cria_contrato_item(client)
-    r = client.post("/api/v1/catalogo", json={
-        "tipo_id": tid, "fornecedor": "MQT", "preco": 165.0, "item_contrato_id": item_id})
-    assert r.status_code == 201
-    body = r.json()
-    assert body["item_contrato_id"] == item_id
-    assert body["item_numero"] == item_num
-    assert body["contrato_id"] == cid
-    assert body["contrato_numero"] == cnum
-
-
-def test_tipo_inexistente_404(client):
-    r = client.post("/api/v1/catalogo", json={"tipo_id": 99999, "preco": 1.0})
-    assert r.status_code == 404
-
-
-def test_item_contrato_inexistente_404(client):
-    tid = _tipo_id(client)
-    r = client.post("/api/v1/catalogo", json={"tipo_id": tid, "item_contrato_id": 99999})
-    assert r.status_code == 404
-
-
-def test_put_e_delete(client):
-    tid = _tipo_id(client)
-    cat = client.post("/api/v1/catalogo", json={"tipo_id": tid, "preco": 10.0}).json()
-    r = client.put(f"/api/v1/catalogo/{cat['id']}", json={"tipo_id": tid, "preco": 99.0})
-    assert r.status_code == 200 and r.json()["preco"] == 99.0
-    assert client.delete(f"/api/v1/catalogo/{cat['id']}").status_code == 204
-    assert client.get(f"/api/v1/catalogo/{cat['id']}").status_code == 404
-
-
-def test_filtro_tipo_desconhecido_vazio(client):
-    # tipo_id inexistente no filtro retorna lista vazia (não 404)
-    r = client.get("/api/v1/catalogo", params={"tipo_id": 99999})
+def test_catalogo_deriva_dos_itens_de_contrato(client):
+    lab, c = _lab_contrato_item(client, quantidade=10, usado=3, valor=50.0)
+    r = client.get("/api/v1/catalogo")
     assert r.status_code == 200
-    assert r.json() == {"total": 0, "itens": []}
+    itens = r.json()["itens"]
+    assert len(itens) == 1
+    linha = itens[0]
+    assert linha["laboratorio"] == "Lab Cat"
+    assert linha["contrato_numero"] == "ATA C"
+    assert linha["descricao"] == "CALIBRAÇÃO DE MULTÍMETRO"
+    assert linha["preco"] == 50.0
+    assert linha["saldo"] == 7          # 10 - 3
+    assert linha["valor_saldo"] == 350.0
+    assert linha["vigente"] is True
+
+
+def test_catalogo_filtra_por_laboratorio(client):
+    lab_a, _ = _lab_contrato_item(client)
+    # cria outro lab+contrato+item
+    lab_b = client.post("/api/v1/laboratorios", json={"razao_social": "Lab B"}).json()
+    cb = client.post("/api/v1/contratos", json={
+        "numero": "ATA B", "tipo": "ATA", "laboratorio_id": lab_b["id"]}).json()
+    client.post(f"/api/v1/contratos/{cb['id']}/itens", json={
+        "numero": "1", "descricao": "X", "quantidade": 1, "valor_unitario": 10.0})
+    r = client.get("/api/v1/catalogo", params={"laboratorio_id": lab_a["id"]})
+    itens = r.json()["itens"]
+    assert all(i["laboratorio"] == "Lab Cat" for i in itens)
+    assert len(itens) == 1
+
+
+def test_catalogo_apenas_vigentes(client):
+    # contrato vencido -> item não vigente
+    _lab_contrato_item(client, dias_fim=-5)
+    assert client.get("/api/v1/catalogo").json()["total"] == 1
+    assert client.get("/api/v1/catalogo", params={"apenas_vigentes": True}).json()["total"] == 0

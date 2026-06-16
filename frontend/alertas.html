@@ -11,12 +11,12 @@
   <h1>Painel de Alertas</h1>
   <div class="toolbar">
     <select id="disciplina"><option value="">Disciplina</option><option>ELE</option><option>MEC</option></select>
-    <select id="sistema"><option value="">Sistema</option></select>
+    <select id="setor"><option value="">Setor</option></select>
     <a class="btn ghost" id="csv"><i class="bi bi-download"></i> Exportar CSV</a>
   </div>
   <div class="muted" id="cont" style="margin-bottom:8px"></div>
   <div class="twrap"><table id="tab"><thead><tr>
-    <th>Código</th><th>Equipamento</th><th>Sistema</th><th>Validade</th>
+    <th>Código</th><th>Equipamento</th><th>Setor</th><th>Validade</th>
     <th>Dias</th><th>Status</th></tr></thead><tbody></tbody></table></div>
 
   <h1 style="margin-top:28px">Acreditações a vencer</h1>
@@ -31,9 +31,9 @@
 </main>
 <script>
 montarShell("alertas.html");
-const disciplina = document.getElementById("disciplina"), sistema = document.getElementById("sistema"),
+const disciplina = document.getElementById("disciplina"), setor = document.getElementById("setor"),
       cont = document.getElementById("cont"), csv = document.getElementById("csv");
-function params() { return { disciplina: disciplina.value, sistema: sistema.value }; }
+function params() { return { disciplina: disciplina.value, setor: setor.value }; }
 async function carregar() {
   const itens = await SDK.get("/alertas", params());
   cont.textContent = `${itens.length} alerta(s)`;
@@ -43,13 +43,13 @@ async function carregar() {
   csv.href = u;
   document.querySelector("#tab tbody").innerHTML = itens.map(i => `
     <tr><td><a href="ficha.html?id=${i.id}">${esc(i.codigo_interno)}</a></td>
-    <td>${esc(i.equipamento)}</td><td>${esc(i.sistema)}</td>
+    <td>${esc(i.equipamento)}</td><td>${esc(i.setor)}</td>
     <td>${fmtData(i.data_validade)}</td>
     <td>${i.dias_restantes == null ? "—" : i.dias_restantes}</td>
     <td>${badgeStatus(i.status)}</td></tr>`).join("")
     || `<tr><td colspan="6" class="muted">Sem alertas.</td></tr>`;
 }
-[disciplina, sistema].forEach(e => e.onchange = carregar);
+[disciplina, setor].forEach(e => e.onchange = carregar);
 
 async function carregarLabs() {
   const tb = document.querySelector("#tabLab tbody");
@@ -79,8 +79,8 @@ async function carregarContratos() {
 
 (async () => {
   const r = await SDK.get("/instrumentos");
-  [...new Set(r.itens.map(i => i.sistema).filter(Boolean))].sort()
-    .forEach(s => sistema.add(new Option(s, s)));
+  [...new Set(r.itens.map(i => i.setor).filter(Boolean))].sort()
+    .forEach(s => setor.add(new Option(s, s)));
   carregar();
   carregarLabs();
   carregarContratos();

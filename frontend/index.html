@@ -12,7 +12,7 @@
   <div class="kpi-g" id="kpis"></div>
   <div class="card"><b>Status do inventário</b><div id="barra"></div><div id="legenda" class="muted"></div></div>
   <div class="card"><b>Próximos a vencer</b><div class="twrap" style="margin-top:10px"><table id="tab"><thead>
-    <tr><th>Código</th><th>Instrumento</th><th>Sistema</th><th>Validade</th><th>Status</th></tr>
+    <tr><th>Código</th><th>Instrumento</th><th>Setor</th><th>Validade</th><th>Status</th></tr>
   </thead><tbody></tbody></table></div></div>
 </main>
 <script>
@@ -22,7 +22,7 @@ montarShell("index.html");
   document.getElementById("kpis").innerHTML = [
     ["", "Total", k.total], ["red", "Vencidos", k.vencidos],
     ["amber", "A vencer 30d", k.a_vencer_30], ["blue", "Sem data", k.sem_data],
-    ["", "Sistemas", k.n_sistemas],
+    ["", "Setores", k.n_setores],
   ].map(([c, l, v]) => `<div class="kpi ${c}"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("");
 
   const cor = { VENCIDO: "var(--red)", A_VENCER_7: "var(--orange)", A_VENCER_30: "var(--amber)",
@@ -36,7 +36,7 @@ montarShell("index.html");
   const alertas = await SDK.get("/alertas");
   document.querySelector("#tab tbody").innerHTML = alertas.slice(0, 20).map(i => `
     <tr><td><a href="ficha.html?id=${i.id}">${esc(i.codigo_interno)}</a></td>
-    <td>${esc(i.equipamento)}</td><td>${esc(i.sistema)}</td>
+    <td>${esc(i.equipamento)}</td><td>${esc(i.setor)}</td>
     <td>${fmtData(i.data_validade)}</td><td>${badgeStatus(i.status)}</td></tr>`).join("")
     || `<tr><td colspan="5" class="muted">Nenhum alerta. Importe o inventário em "Importar".</td></tr>`;
 })();

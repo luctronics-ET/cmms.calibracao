@@ -7,11 +7,11 @@ from backend.criticidade import calcular_igp
 from backend.contratos_calc import saldo_item, status_saldo
 from backend.models import (
     Instrumento, Calibracao, Laboratorio, StatusOperacional, Resultado,
-    Contrato, ItemContrato, CatalogoPreco,
+    Contrato, ItemContrato,
 )
 from backend.schemas import (
     InstrumentoOut, CalibracaoOut, LaboratorioOut, ContratoOut, ItemContratoOut,
-    CatalogoPrecoOut, InstrumentoPublicoOut,
+    CatalogoItemOut, InstrumentoPublicoOut,
 )
 
 
@@ -41,7 +41,7 @@ def instrumento_para_out(inst: Instrumento, hoje: date) -> InstrumentoOut:
         grandeza_nome=inst.grandeza.nome if inst.grandeza else None,
         unidade_id=inst.unidade_id,
         unidade_simbolo=inst.unidade.simbolo if inst.unidade else None,
-        sistema=inst.sistema,
+        setor=inst.setor,
         organizacao=inst.organizacao,
         unidade_org=inst.unidade_org,
         secao=inst.secao,
@@ -68,11 +68,50 @@ def instrumento_para_out(inst: Instrumento, hoje: date) -> InstrumentoOut:
     )
 
 
+def _contrato_numero_de(cal: Calibracao) -> str | None:
+    it = cal.item_contrato
+    return it.contrato.numero if it is not None and it.contrato is not None else None
+
+
+def contrato_vigente(c, hoje: date) -> bool:
+    """Vigente = ativo e não-vencido (vigência_fim >= hoje, ou sem data)."""
+    if not c.ativo:
+        return False
+    return c.vigencia_fim is None or c.vigencia_fim >= hoje
+
+
+def item_consumivel(item: ItemContrato, hoje: date) -> bool:
+    """Item pode ser consumido por calibração: contrato vigente e com saldo."""
+    if item.contrato is None or not contrato_vigente(item.contrato, hoje):
+        return False
+    return (item.quantidade - item.usado) > 0
+
+
+def calibracao_recente_para_out(cal: Calibracao):
+    from backend.schemas import CalibracaoRecenteOut
+    inst = cal.instrumento
+    return CalibracaoRecenteOut(
+        id=cal.id,
+        instrumento_id=cal.instrumento_id,
+        instrumento_codigo=(inst.codigo_interno or inst.codigo_patrimonial) if inst else None,
+        instrumento_equipamento=inst.equipamento if inst else None,
+        data_calibracao=cal.data_calibracao,
+        data_validade=cal.data_validade,
+        resultado=cal.resultado.value,
+        laboratorio=cal.laboratorio,
+        custo=float(cal.custo) if cal.custo is not None else None,
+        contrato_numero=_contrato_numero_de(cal),
+        origem=cal.origem,
+    )
+
+
 def calibracao_para_out(cal: Calibracao) -> CalibracaoOut:
     return CalibracaoOut(
         id=cal.id,
         instrumento_id=cal.instrumento_id,
         laboratorio_id=cal.laboratorio_id,
+        item_contrato_id=cal.item_contrato_id,
+        contrato_numero=_contrato_numero_de(cal),
         data_calibracao=cal.data_calibracao,
         data_validade=cal.data_validade,
         ciclo_meses=cal.ciclo_meses,
@@ -179,7 +218,8 @@ def contrato_para_out(contrato: Contrato, hoje: date) -> ContratoOut:
         id=contrato.id,
         numero=contrato.numero,
         tipo=contrato.tipo.value,
-        fornecedor=contrato.fornecedor,
+        laboratorio_id=contrato.laboratorio_id,
+        laboratorio=contrato.laboratorio.razao_social if contrato.laboratorio else None,
         objeto=contrato.objeto,
         vigencia_inicio=contrato.vigencia_inicio,
         vigencia_fim=contrato.vigencia_fim,
@@ -195,21 +235,29 @@ def contrato_para_out(contrato: Contrato, hoje: date) -> ContratoOut:
     )
 
 
-def catalogo_para_out(cat: CatalogoPreco) -> CatalogoPrecoOut:
-    item = cat.item_contrato
-    contrato = item.contrato if item is not None else None
-    return CatalogoPrecoOut(
-        id=cat.id,
-        tipo_id=cat.tipo_id,
-        fornecedor=cat.fornecedor,
-        preco=float(cat.preco) if cat.preco is not None else None,
-        item_contrato_id=cat.item_contrato_id,
-        ativo=cat.ativo,
-        observacoes=cat.observacoes,
-        tipo_nome=cat.tipo.nome if cat.tipo is not None else None,
-        item_numero=item.numero if item is not None else None,
-        contrato_id=contrato.id if contrato is not None else None,
-        contrato_numero=contrato.numero if contrato is not None else None,
+def catalogo_item_para_out(item: ItemContrato, hoje: date) -> CatalogoItemOut:
+    """Linha do catálogo derivada de um item de contrato."""
+    c = item.contrato
+    saldo, valor_saldo = saldo_item(item.quantidade, item.usado,
+                                    float(item.valor_unitario) if item.valor_unitario is not None else None)
+    st = calcular_status(c.vigencia_fim if c else None, None, hoje)
+    return CatalogoItemOut(
+        item_id=item.id,
+        item_numero=item.numero,
+        descricao=item.descricao,
+        laboratorio_id=c.laboratorio_id if c else None,
+        laboratorio=c.laboratorio.razao_social if c and c.laboratorio else None,
+        contrato_id=c.id if c else None,
+        contrato_numero=c.numero if c else None,
+        contrato_tipo=c.tipo.value if c else None,
+        preco=float(item.valor_unitario) if item.valor_unitario is not None else None,
+        quantidade=item.quantidade,
+        usado=item.usado,
+        saldo=saldo,
+        valor_saldo=valor_saldo,
+        vigencia_fim=c.vigencia_fim if c else None,
+        status_vigencia=st.status.value,
+        vigente=item_consumivel(item, hoje),
     )
 
 
@@ -230,7 +278,7 @@ def instrumento_publico_para_out(inst, hoje: date) -> InstrumentoPublicoOut:
         modelo=inst.modelo,
         tipo_nome=inst.tipo.nome if inst.tipo is not None else None,
         secao=inst.secao,
-        sistema=inst.sistema,
+        setor=inst.setor,
         status=st.status.value,
         status_label=_STATUS_LABEL_PUB.get(st.status.value, st.status.value),
         status_operacional=inst.status_operacional.value,

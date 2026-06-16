@@ -19,7 +19,7 @@ def test_mapeia_campos_por_conteudo():
     linha = _proc()["linhas"][0]["dados"]
     assert linha["equipamento"] == "ANALISADOR DE ESPECTRO"
     assert linha["disciplina"] == "ELE"
-    assert linha["sistema"] == "EXOCET"
+    assert linha["setor"] == "EXOCET"
     assert linha["organizacao_calibradora"] == "CMS"        # SITUAÇÃO -> org
     assert linha["flag_origem"] == "DESCALIBRADO"           # VALIDADE -> flag
     assert linha["data_validade"] == date(2025, 9, 13)      # PRÓXIMA -> validade

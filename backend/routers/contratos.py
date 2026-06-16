@@ -4,7 +4,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from backend.db import get_db
-from backend.models import Contrato, ItemContrato, ContratoTipo
+from backend.models import Contrato, ItemContrato, ContratoTipo, Laboratorio
 from backend.servico import contrato_para_out
 from backend.calibracao import StatusCalibracao
 from backend.schemas import ContratoIn, ContratoOut, ListaContratos, ItemContratoIn
@@ -26,9 +26,12 @@ def _get_contrato(db: Session, cid: int) -> Contrato:
     return c
 
 
-def _aplicar_contrato(c: Contrato, dados: ContratoIn) -> None:
+def _aplicar_contrato(db: Session, c: Contrato, dados: ContratoIn) -> None:
     payload = dados.model_dump()
     payload["tipo"] = ContratoTipo(payload["tipo"])
+    if payload.get("laboratorio_id") is not None:
+        if not db.get(Laboratorio, payload["laboratorio_id"]):
+            raise HTTPException(status_code=404, detail="Laboratório não encontrado")
     for campo, valor in payload.items():
         setattr(c, campo, valor)
 
@@ -71,7 +74,7 @@ def obter(cid: int, db: Session = Depends(get_db)):
 @router.post("/contratos", response_model=ContratoOut, status_code=201)
 def criar(dados: ContratoIn, db: Session = Depends(get_db)):
     c = Contrato()
-    _aplicar_contrato(c, dados)
+    _aplicar_contrato(db, c, dados)
     db.add(c)
     db.commit()
     return _out(db, c)
@@ -80,7 +83,7 @@ def criar(dados: ContratoIn, db: Session = Depends(get_db)):
 @router.put("/contratos/{cid}", response_model=ContratoOut)
 def editar(cid: int, dados: ContratoIn, db: Session = Depends(get_db)):
     c = _get_contrato(db, cid)
-    _aplicar_contrato(c, dados)
+    _aplicar_contrato(db, c, dados)
     db.commit()
     return _out(db, c)
 

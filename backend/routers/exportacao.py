@@ -29,7 +29,7 @@ COLUNAS: list[tuple[str, str]] = [
     ("resolucao", "Resolução"),
     ("emp", "EMP"),
     ("disciplina", "Disciplina"),
-    ("sistema", "Sistema"),
+    ("setor", "Setor"),
     ("localizacao", "Localização"),
     ("status_operacional", "Status operacional"),
     ("status", "Status validade"),
@@ -129,7 +129,7 @@ def _gerar_pdf(instrumentos: list[InstrumentoOut]) -> bytes:
 
     # cabeçalhos e larguras (mm) do resumo
     cols = [
-        ("Codigo", 45), ("Equipamento", 75), ("Sistema", 45),
+        ("Codigo", 45), ("Equipamento", 75), ("Setor", 45),
         ("Validade", 30), ("Status", 40), ("IGP/Classe", 42),
     ]
     pdf.set_font("Helvetica", "B", 9)
@@ -142,7 +142,7 @@ def _gerar_pdf(instrumentos: list[InstrumentoOut]) -> bytes:
         igp = f"{o.igp} / {o.classe_prioridade}" if o.igp is not None else o.classe_prioridade
         valores = [
             o.codigo_interno or o.codigo_patrimonial or "-",
-            o.equipamento or "-", o.sistema or "-",
+            o.equipamento or "-", o.setor or "-",
             validade, o.status, igp,
         ]
         for (titulo, larg), valor in zip(cols, valores):

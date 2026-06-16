@@ -1,4 +1,4 @@
-from backend.db import Base, get_db
+from backend.db import get_db
 from backend import models
 from backend.dominios import seed_dominios
 from backend.seed_ata import seed_ata
@@ -10,45 +10,30 @@ def _db(client):
     return next(gen)
 
 
-def test_seed_idempotente_e_matching(client):
+def test_seed_cria_lab_contrato_itens(client):
     db = _db(client)
-    seed_dominios(db)  # garante tipos do domínio (Multímetro, Paquímetro, etc.)
+    seed_dominios(db)
     r1 = seed_ata(db)
-    # contrato + 22 itens criados
     assert r1["contrato"] == 1
     assert r1["itens"] == 22
-    # ao menos os tipos óbvios casaram (Multímetro, Paquímetro, Torquímetro, ...)
-    assert r1["catalogo"] >= 5
     contrato = db.query(models.Contrato).filter_by(numero="ATA MQT 129/2025").first()
     assert contrato is not None
+    # fornecedor do contrato = laboratório (FK), não texto
+    assert contrato.laboratorio is not None
+    assert contrato.laboratorio.razao_social == "MQT Serviços Metrológicos Ltda"
     assert db.query(models.ItemContrato).filter_by(contrato_id=contrato.id).count() == 22
-    n_cat = db.query(models.CatalogoPreco).count()
-    assert n_cat == r1["catalogo"]
-    # alguma entrada de catálogo está vinculada a um item de contrato
-    assert db.query(models.CatalogoPreco).filter(
-        models.CatalogoPreco.item_contrato_id.isnot(None)).count() >= 1
-
-    # idempotência: rodar de novo não duplica
-    r2 = seed_ata(db)
-    assert r2["contrato"] == 0
-    assert r2["itens"] == 0
-    assert r2["catalogo"] == 0
-    assert db.query(models.ItemContrato).filter_by(contrato_id=contrato.id).count() == 22
-    assert db.query(models.CatalogoPreco).count() == n_cat
     db.close()
 
 
-def test_seed_nao_apaga_entrada_manual(client):
+def test_seed_idempotente(client):
     db = _db(client)
     seed_dominios(db)
     seed_ata(db)
-    tipo = db.query(models.TipoInstrumento).first()
-    manual = models.CatalogoPreco(tipo_id=tipo.id, fornecedor="Fornecedor Manual",
-                                  preco=999.0, ativo=True)
-    db.add(manual)
-    db.commit()
-    n_antes = db.query(models.CatalogoPreco).count()
-    seed_ata(db)  # re-run não deve apagar nem duplicar a entrada manual
-    assert db.query(models.CatalogoPreco).count() == n_antes
-    assert db.query(models.CatalogoPreco).filter_by(fornecedor="Fornecedor Manual").count() == 1
+    n_lab = db.query(models.Laboratorio).count()
+    r2 = seed_ata(db)
+    assert r2["contrato"] == 0
+    assert r2["itens"] == 0
+    contrato = db.query(models.Contrato).filter_by(numero="ATA MQT 129/2025").first()
+    assert db.query(models.ItemContrato).filter_by(contrato_id=contrato.id).count() == 22
+    assert db.query(models.Laboratorio).count() == n_lab  # não duplica o lab
     db.close()

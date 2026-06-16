@@ -37,7 +37,7 @@ def kpis(db: Session = Depends(get_db)):
         "vencidos": cont.get("VENCIDO", 0),
         "a_vencer_30": a_vencer_30,
         "sem_data": cont.get("SEM_DATA", 0),
-        "n_sistemas": len({i.sistema for i in itens if i.sistema}),
+        "n_setores": len({i.setor for i in itens if i.setor}),
         "por_status": [{"status": s, "label": LABEL.get(s, s), "total": cont[s]}
                        for s in cont],
     }
@@ -47,25 +47,25 @@ def kpis(db: Session = Depends(get_db)):
 def alertas(
     db: Session = Depends(get_db),
     disciplina: str | None = Query(None),
-    sistema: str | None = Query(None),
+    setor: str | None = Query(None),
     formato: str | None = Query(None),
 ):
     hoje = date.today()
     itens = [i for i in _todos(db, hoje) if i.status in URGENCIA]
     if disciplina:
         itens = [i for i in itens if i.disciplina == disciplina.upper()]
-    if sistema:
-        itens = [i for i in itens if (i.sistema or "") == sistema]
+    if setor:
+        itens = [i for i in itens if (i.setor or "") == setor]
     itens.sort(key=lambda i: (URGENCIA[i.status],
                               i.dias_restantes if i.dias_restantes is not None else 99999))
 
     if formato == "csv":
         buf = io.StringIO()
         w = csv.writer(buf)
-        w.writerow(["codigo_interno", "equipamento", "sistema", "disciplina",
+        w.writerow(["codigo_interno", "equipamento", "setor", "disciplina",
                     "data_validade", "status", "dias_restantes"])
         for i in itens:
-            w.writerow([i.codigo_interno, i.equipamento, i.sistema, i.disciplina,
+            w.writerow([i.codigo_interno, i.equipamento, i.setor, i.disciplina,
                         i.data_validade, i.status, i.dias_restantes])
         return Response(content=buf.getvalue(), media_type="text/csv",
                         headers={"Content-Disposition": "attachment; filename=alertas.csv"})

@@ -25,9 +25,33 @@
     </div>
   </div>
   <div id="selecionado"></div>
+  <div class="card" style="margin-top:14px">
+    <h2 style="margin-top:0;font-size:15px">Calibrações recentes</h2>
+    <div id="recentes"><p class="muted">Carregando…</p></div>
+  </div>
 </main>
 <script>
 montarShell("calibracao.html");
+
+async function carregarRecentes() {
+  const box = document.getElementById("recentes");
+  let d;
+  try { d = await SDK.get("/calibracoes"); }
+  catch (err) { box.innerHTML = `<span class="sev-erro">Falha: ${esc(err.message)}</span>`; return; }
+  if (!d.itens.length) { box.innerHTML = '<p class="muted">Nenhuma calibração registrada.</p>'; return; }
+  const linhas = d.itens.map(c => `<tr>
+      <td><a href="ficha.html?id=${c.instrumento_id}">${esc(c.instrumento_codigo) || c.instrumento_id}</a></td>
+      <td>${esc(c.instrumento_equipamento) || "—"}</td>
+      <td>${fmtData(c.data_calibracao)}</td>
+      <td>${fmtData(c.data_validade)}</td>
+      <td>${esc(c.laboratorio) || "—"}</td>
+      <td>${esc(c.contrato_numero) || "—"}</td>
+    </tr>`).join("");
+  box.innerHTML = `<div class="twrap"><table>
+    <thead><tr><th>Código</th><th>Equipamento</th><th>Data</th><th>Validade</th><th>Laboratório</th><th>Contrato</th></tr></thead>
+    <tbody>${linhas}</tbody></table></div>`;
+}
+carregarRecentes();
 
 const buscaInst = document.getElementById("buscaInst"),
       buscaRes = document.getElementById("buscaRes"),
@@ -81,7 +105,7 @@ async function selecionar(id) {
       <div id="secaoCalib" data-inst="${i.id}" style="margin-top:14px"></div>
     </div>`;
   // reuso das funções compartilhadas (app.js): histórico + form + upload
-  montarSecaoCalibracoes(i.id, () => selecionar(id));
+  montarSecaoCalibracoes(i.id, () => { carregarRecentes(); return selecionar(id); });
 }
 </script>
 </body></html>

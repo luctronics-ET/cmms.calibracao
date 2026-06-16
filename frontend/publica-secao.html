@@ -1,0 +1,92 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SisCalib · Painel da seção</title>
+<link rel="stylesheet" href="vendor/fonts.css">
+<link rel="stylesheet" href="vendor/bootstrap-icons.min.css">
+<link rel="stylesheet" href="vendor/xcmasm-govbr.css">
+<link rel="stylesheet" href="siscalib.css">
+<style>
+  .pub-main{max-width:880px;margin:0 auto;padding:18px 16px 40px}
+  .pub-head{display:flex;align-items:center;gap:10px;margin-bottom:6px;color:var(--tx3);font-size:13px}
+  .pub-head img{height:28px}
+  .pub-secao{font-size:30px;font-weight:800;line-height:1.1;margin:6px 0 16px}
+  .pub-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+  .pub-num{text-align:center;padding:16px 8px}
+  .pub-num b{display:block;font-size:44px;line-height:1;font-weight:800}
+  .pub-num span{color:var(--tx3);font-size:13px;text-transform:uppercase;letter-spacing:.04em}
+  .pub-num.vencido b{color:var(--err,#e5484d)}
+  .pub-num.avencer b{color:var(--warn,#f5a623)}
+  .pub-num.valido b{color:var(--ok,#30a46c)}
+  .pub-sel a{display:inline-block;margin:4px 6px 4px 0}
+  .pub-nota{color:var(--tx3);font-size:12px;margin-top:18px;text-align:center}
+</style>
+</head><body class="app">
+<script src="app.js"></script>
+<main class="pub-main">
+  <div class="pub-head">
+    <img src="vendor/Logo_of_the_Brazilian_Navy.svg.png" alt="MB">
+    <span>SisCalib · painel da seção</span>
+  </div>
+  <div id="corpo"><p class="muted">Carregando…</p></div>
+  <div class="pub-nota">Sem login — atualiza automaticamente</div>
+</main>
+<script>
+// Ordem de urgência p/ ordenação da lista
+const URGENCIA = { VENCIDO: 0, A_VENCER_7: 1, A_VENCER_30: 2, A_VENCER_60: 3, VALIDO: 4 };
+const corpo = document.getElementById("corpo");
+const secao = new URLSearchParams(location.search).get("secao");
+
+async function renderSeletor() {
+  let secoes;
+  try { secoes = await SDK.get("/publico/secoes"); }
+  catch (e) { corpo.innerHTML = `<p class="sev-erro">Falha ao carregar seções</p>`; return; }
+  if (!secoes.length) { corpo.innerHTML = `<p class="muted">Nenhuma seção cadastrada</p>`; return; }
+  corpo.innerHTML = `<div class="card pub-sel">
+    <h2 style="margin-top:0">Escolha a seção</h2>
+    ${secoes.map(s => `<a class="bdg slate" href="?secao=${encodeURIComponent(s)}">${esc(s)}</a>`).join("")}
+  </div>`;
+}
+
+async function renderPainel() {
+  let itens;
+  try { itens = await SDK.get("/publico/instrumentos?secao=" + encodeURIComponent(secao)); }
+  catch (e) { corpo.innerHTML = `<p class="sev-erro">Falha ao carregar a seção</p>`; return; }
+
+  const vencidos = itens.filter(i => i.status === "VENCIDO").length;
+  const avencer  = itens.filter(i => i.status === "A_VENCER_7" || i.status === "A_VENCER_30").length;
+  const validos  = itens.length - vencidos - avencer;
+
+  itens.sort((a, b) =>
+    (URGENCIA[a.status] ?? 9) - (URGENCIA[b.status] ?? 9) ||
+    ((a.dias_restantes ?? 1e9) - (b.dias_restantes ?? 1e9)));
+
+  const linhas = itens.map(i => {
+    const dias = i.dias_restantes != null ? `<span class="muted">${i.dias_restantes}d</span>` : "—";
+    const cod = esc(i.codigo_interno) || esc(i.codigo_patrimonial) || "(sem código)";
+    return `<tr>
+      <td><a href="publica.html?id=${i.id}">${cod}</a></td>
+      <td>${esc(i.equipamento) || "—"}</td>
+      <td>${badgeStatus(i.status)}</td>
+      <td>${fmtData(i.data_validade)}</td>
+      <td>${dias}</td>
+    </tr>`;
+  }).join("");
+
+  corpo.innerHTML = `
+    <div class="pub-secao">${esc(secao)}</div>
+    <div class="pub-cards">
+      <div class="card pub-num vencido"><b>${vencidos}</b><span>Vencidos</span></div>
+      <div class="card pub-num avencer"><b>${avencer}</b><span>A vencer 30d</span></div>
+      <div class="card pub-num valido"><b>${validos}</b><span>Válidos</span></div>
+    </div>
+    <div class="card twrap"><table><thead><tr>
+      <th>Código</th><th>Equipamento</th><th>Status</th><th>Validade</th><th>Restam</th>
+    </tr></thead><tbody>
+      ${linhas || `<tr><td colspan="5" class="muted">Nenhum instrumento nesta seção</td></tr>`}
+    </tbody></table></div>`;
+}
+
+if (secao) { renderPainel(); setInterval(renderPainel, 60000); }
+else { renderSeletor(); }
+</script>
+</body></html>

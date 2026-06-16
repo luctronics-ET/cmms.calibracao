@@ -29,15 +29,15 @@ def client(tmp_path, monkeypatch):
     tipo_paq = db.query(models.TipoInstrumento).filter_by(nome="Paquímetro").first()
     db.add_all([
         models.Instrumento(codigo_interno="A-1", equipamento="MULTÍMETRO", marca="Fluke",
-                           disciplina=models.Disciplina.ELE, sistema="MK-48",
+                           disciplina=models.Disciplina.ELE, setor="MK-48", secao="Eletrônica",
                            familia_id=fam.id, tipo_id=tipo.id, ciclo_meses=12,
                            data_validade=date(2020, 1, 1), flag_origem="DESCALIBRADO"),
         models.Instrumento(codigo_interno="A-2", equipamento="PAQUÍMETRO",
-                           disciplina=models.Disciplina.MEC, sistema="F-21",
+                           disciplina=models.Disciplina.MEC, setor="F-21", secao="Metrologia",
                            familia_id=fam_mec.id, tipo_id=tipo_paq.id, ciclo_meses=12,
                            data_validade=date(2099, 1, 1), flag_origem="CALIBRADO"),
         models.Instrumento(codigo_interno="A-3", equipamento="TORQUÍMETRO",
-                           disciplina=models.Disciplina.MEC, sistema="MK-48",
+                           disciplina=models.Disciplina.MEC, setor="MK-48", secao="Eletrônica",
                            ciclo_meses=12, data_validade=None, flag_origem=""),
     ])
     db.commit()

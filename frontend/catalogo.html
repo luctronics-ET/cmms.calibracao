@@ -1,174 +1,71 @@
 <!doctype html><html lang="pt-BR"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SisCalib · Catálogo de Preços</title>
+<title>SisCalib · Catálogo de Calibração</title>
 <link rel="stylesheet" href="vendor/fonts.css">
 <link rel="stylesheet" href="vendor/bootstrap-icons.min.css">
 <link rel="stylesheet" href="vendor/xcmasm-govbr.css">
 <link rel="stylesheet" href="siscalib.css">
-<style>
-.grid2-cat{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.cat-form .fld{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
-.cat-form .fld label{font-size:12px;color:var(--tx2)}
-.cat-form .fld.req label::after{content:" *";color:var(--red)}
-.cat-form .fld.chk{flex-direction:row;align-items:center;gap:8px}
-.cat-form .fld.chk label{font-size:13px;color:var(--tx)}
-</style>
 </head><body class="app">
 <script src="app.js"></script>
 <main class="main">
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-    <h1 style="margin:0">Catálogo de Preços</h1>
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <select id="fTipo"><option value="">Todos os tipos</option></select>
-      <button class="btn" id="btnNovo"><i class="bi bi-plus-lg"></i> Novo preço</button>
+    <h1 style="margin:0">Catálogo de Calibração</h1>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <select id="fLab"><option value="">Todos os laboratórios</option></select>
+      <label class="muted" style="display:flex;align-items:center;gap:6px;font-size:13px">
+        <input type="checkbox" id="fVig"> só vigentes</label>
     </div>
   </div>
+  <p class="muted" style="margin:6px 0 0">Serviços de calibração dos contratos — preço, saldo e vigência por laboratório.</p>
   <div class="muted" id="cont" style="margin:10px 0 8px"></div>
   <div class="twrap"><table id="tab"><thead><tr>
-    <th>Tipo</th><th>Fornecedor</th><th>Preço</th><th>Contrato/Item</th>
-    <th>Ativo</th><th>Ações</th></tr></thead><tbody></tbody></table></div>
+    <th>Laboratório</th><th>Contrato</th><th>Serviço (item)</th><th>Preço</th>
+    <th>Saldo (qtd)</th><th>Valor saldo</th><th>Vigência</th></tr></thead><tbody></tbody></table></div>
 </main>
 <script>
 montarShell("catalogo.html");
 const cont = document.getElementById("cont");
 const tbody = document.querySelector("#tab tbody");
-const fTipo = document.getElementById("fTipo");
+const fLab = document.getElementById("fLab");
+const fVig = document.getElementById("fVig");
 
 function money(n) {
   return "R$ " + Number(n || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// Caches carregados sob demanda para os selects do formulário.
-let _tipos = null;     // [{id, nome, ...}]
-let _itensContrato = null; // [{id, label}] achatado de todos os contratos
-
-async function carregarTipos() {
-  if (_tipos) return _tipos;
-  const dom = await SDK.get("/dominios");
-  _tipos = dom.tipos || [];
-  return _tipos;
-}
-
-async function carregarItensContrato() {
-  if (_itensContrato) return _itensContrato;
-  const dados = await SDK.get("/contratos");
-  const lista = [];
-  for (const c of (dados.itens || [])) {
-    for (const it of (c.itens || [])) {
-      lista.push({
-        id: it.id,
-        label: `${c.numero} · item ${it.numero}${it.descricao ? " — " + it.descricao : ""}`,
-      });
-    }
-  }
-  _itensContrato = lista;
-  return _itensContrato;
-}
-
-async function montarFiltroTipo() {
+async function carregarLabs() {
   try {
-    const tipos = await carregarTipos();
-    for (const t of tipos) fTipo.add(new Option(t.nome, t.id));
-  } catch (err) { /* mantém só "Todos os tipos" */ }
+    const { itens } = await SDK.get("/laboratorios");
+    for (const l of itens) fLab.add(new Option(l.razao_social, l.id));
+  } catch (e) { /* sem labs */ }
 }
 
 async function carregar() {
-  const tipoId = fTipo.value;
+  const q = {};
+  if (fLab.value) q.laboratorio_id = Number(fLab.value);
+  if (fVig.checked) q.apenas_vigentes = true;
   let dados;
-  try { dados = await SDK.get("/catalogo", tipoId ? { tipo_id: tipoId } : undefined); }
+  try { dados = await SDK.get("/catalogo", Object.keys(q).length ? q : undefined); }
   catch (err) {
-    tbody.innerHTML = `<tr><td colspan="6" class="sev-erro">Falha ao carregar: ${esc(err.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="sev-erro">Falha ao carregar: ${esc(err.message)}</td></tr>`;
     return;
   }
-  cont.textContent = `${dados.total} preço(s)`;
+  cont.textContent = `${dados.total} serviço(s)`;
   tbody.innerHTML = dados.itens.map(c => `
-    <tr>
-      <td>${esc(c.tipo_nome) || "—"}</td>
-      <td>${esc(c.fornecedor) || "—"}</td>
+    <tr${c.vigente ? "" : ' style="opacity:.55"'}>
+      <td>${esc(c.laboratorio) || "—"}</td>
+      <td>${esc(c.contrato_numero)} <span class="bdg slate">${esc(c.contrato_tipo)}</span></td>
+      <td>${esc(c.descricao) || "—"}${c.item_numero ? ` <span class="muted">· item ${esc(c.item_numero)}</span>` : ""}</td>
       <td>${money(c.preco)}</td>
-      <td>${c.contrato_numero ? esc(c.contrato_numero) + " · item " + esc(c.item_numero) : "—"}</td>
-      <td>${c.ativo ? "Sim" : "Não"}</td>
-      <td>
-        <button class="btn ghost cat-edit" data-id="${c.id}" style="padding:2px 8px">Editar</button>
-        <button class="btn ghost cat-del" data-id="${c.id}" style="padding:2px 8px">Excluir</button>
-      </td>
-    </tr>`).join("") || `<tr><td colspan="6" class="muted">Nenhum preço cadastrado.</td></tr>`;
-
-  tbody.querySelectorAll(".cat-edit").forEach(b => b.onclick = () => abrirForm(Number(b.dataset.id)));
-  tbody.querySelectorAll(".cat-del").forEach(b => b.onclick = async () => {
-    if (!confirm("Excluir este preço?")) return;
-    b.disabled = true;
-    try { await SDK.del("/catalogo/" + b.dataset.id); await carregar(); }
-    catch (err) { alert("Falha ao excluir: " + err.message); b.disabled = false; }
-  });
+      <td>${c.saldo} / ${c.quantidade}</td>
+      <td>${money(c.valor_saldo)}</td>
+      <td>${fmtData(c.vigencia_fim)} ${badgeStatus(c.status_vigencia)}</td>
+    </tr>`).join("") || `<tr><td colspan="7" class="muted">Nenhum serviço de calibração em contrato.</td></tr>`;
 }
 
-function formHtml(c, tipos, itens) {
-  c = c || {};
-  const tipoOpts = tipos.map(t =>
-    `<option value="${t.id}"${c.tipo_id === t.id ? " selected" : ""}>${esc(t.nome)}</option>`).join("");
-  const itemOpts = itens.map(it =>
-    `<option value="${it.id}"${c.item_contrato_id === it.id ? " selected" : ""}>${esc(it.label)}</option>`).join("");
-  return `<form class="cat-form" id="catForm">
-    <div class="grid2-cat">
-      <div class="fld req"><label>Tipo de instrumento</label>
-        <select name="tipo_id" required><option value="">— selecione —</option>${tipoOpts}</select></div>
-      <div class="fld"><label>Fornecedor</label><input name="fornecedor" value="${esc(c.fornecedor)}"></div>
-      <div class="fld"><label>Preço</label><input name="preco" type="number" step="any" value="${c.preco != null ? esc(c.preco) : ""}"></div>
-      <div class="fld"><label>Vínculo a item de contrato</label>
-        <select name="item_contrato_id"><option value="">— sem vínculo —</option>${itemOpts}</select></div>
-    </div>
-    <div class="fld"><label>Observações</label><textarea name="observacoes" rows="2">${esc(c.observacoes)}</textarea></div>
-    <div class="fld chk"><input type="checkbox" name="ativo" id="catAtivo" ${c.ativo === false ? "" : "checked"}><label for="catAtivo">Ativo</label></div>
-    <span class="sev-erro cat-erro"></span>
-  </form>`;
-}
-
-async function abrirForm(id) {
-  let cat = null, tipos, itens;
-  try {
-    [tipos, itens] = await Promise.all([carregarTipos(), carregarItensContrato()]);
-    if (id != null) cat = await SDK.get("/catalogo/" + id);
-  } catch (err) { alert("Falha ao carregar dados: " + err.message); return; }
-
-  const titulo = id != null ? "Editar preço" : "Novo preço";
-  const ov = abrirModal(titulo, formHtml(cat, tipos, itens),
-    `<button class="btn ghost" id="catCancel" type="button">Cancelar</button>
-     <button class="btn" id="catSalvar" type="button">Salvar</button>`);
-  const form = ov.querySelector("#catForm");
-  const erro = ov.querySelector(".cat-erro");
-  ov.querySelector("#catCancel").onclick = fecharModal;
-  ov.querySelector("#catSalvar").onclick = async () => {
-    erro.textContent = "";
-    if (!form.tipo_id.value) { erro.textContent = "Tipo de instrumento é obrigatório."; return; }
-    // PUT é substituição total: enviar TODOS os campos de CatalogoPrecoIn.
-    const preco = form.preco.value.trim();
-    const itemId = form.item_contrato_id.value;
-    const body = {
-      tipo_id: Number(form.tipo_id.value),
-      fornecedor: form.fornecedor.value.trim() || null,
-      preco: preco === "" ? null : Number(preco),
-      item_contrato_id: itemId === "" ? null : Number(itemId),
-      ativo: form.ativo.checked,
-      observacoes: form.observacoes.value.trim() || null,
-    };
-    const btn = ov.querySelector("#catSalvar");
-    btn.disabled = true;
-    try {
-      if (id != null) await SDK.put("/catalogo/" + id, body);
-      else await SDK.post("/catalogo", body);
-      fecharModal();
-      await carregar();
-    } catch (err) {
-      erro.textContent = "Falha ao salvar: " + err.message;
-      btn.disabled = false;
-    }
-  };
-}
-
-fTipo.onchange = carregar;
-document.getElementById("btnNovo").onclick = () => abrirForm(null);
-montarFiltroTipo();
+fLab.onchange = carregar;
+fVig.onchange = carregar;
+carregarLabs();
 carregar();
 </script>
 </body></html>

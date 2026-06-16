@@ -214,7 +214,7 @@ function renderFichaResumo(i) {
     ["Grandeza", i.grandeza_nome], ["Unidade", i.unidade_simbolo],
     ["Faixa", [i.faixa_min, i.faixa_max].some(v => v != null) ? `${i.faixa_min ?? ""} … ${i.faixa_max ?? ""}` : i.faixa],
     ["Resolução", i.resolucao], ["EMP", i.emp],
-    ["Disciplina", i.disciplina], ["Sistema", i.sistema],
+    ["Disciplina", i.disciplina], ["Setor", i.setor],
     ["Localização", [i.organizacao, i.unidade_org, i.secao, i.bancada].filter(Boolean).join(" → ")],
     ["Ciclo (meses)", i.ciclo_meses],
     ["Última calibração", fmtData(i.data_ultima_calibracao)],
@@ -332,6 +332,9 @@ function renderFormCalibracao(instId, onSaved) {
   const form = document.createElement("form");
   form.className = "calib-form";
   form.innerHTML = `
+    <div class="fld"><label>Item de contrato (vigente)</label>
+      <select id="calibItem"><option value="">— sem contrato —</option></select>
+      <small class="muted">Ao vincular, custo e laboratório vêm do contrato e consomem 1 unidade do saldo.</small></div>
     <div class="fld"><label>Laboratório cadastrado</label>
       <select id="calibLab"><option value="">— laboratório (opcional) —</option></select></div>
     <div class="grid2-calib">
@@ -353,12 +356,28 @@ function renderFormCalibracao(instId, onSaved) {
     </div>`;
   const erro = form.querySelector(".calib-erro");
   const selLab = form.querySelector("#calibLab");
+  const selItem = form.querySelector("#calibItem");
   // Carrega a lista de laboratórios de forma assíncrona ao montar o form.
   (async () => {
     try {
       const dados = await SDK.get("/laboratorios");
       for (const l of dados.itens) selLab.add(new Option(l.razao_social, l.id));
     } catch (err) { /* lista vazia / falha: mantém só a opção vazia */ }
+  })();
+  // Itens de contratos VIGENTES (não-vencido, com saldo) para vincular/consumir.
+  (async () => {
+    try {
+      const { itens } = await SDK.get("/contratos");
+      for (const c of itens) {
+        const vigente = c.status_vigencia !== "VENCIDO" && c.status_saldo !== "ESGOTADO";
+        if (!vigente) continue;
+        for (const it of (c.itens || [])) {
+          if (it.saldo <= 0) continue;
+          const rotulo = `${c.numero} · item ${it.numero || it.id} · ${it.descricao || ""} (saldo ${it.saldo})`;
+          selItem.add(new Option(rotulo, it.id));
+        }
+      }
+    } catch (err) { /* sem contratos: mantém só "sem contrato" */ }
   })();
   form.onsubmit = async (e) => {
     e.preventDefault();
@@ -370,6 +389,7 @@ function renderFormCalibracao(instId, onSaved) {
       body[k] = k === "custo" ? parseFloat(v) : v;
     }
     if (selLab.value) body.laboratorio_id = Number(selLab.value);
+    if (selItem.value) body.item_contrato_id = Number(selItem.value);
     const btn = form.querySelector('button[type="submit"]');
     btn.disabled = true;
     try {

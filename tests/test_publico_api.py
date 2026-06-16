@@ -27,6 +27,27 @@ def test_publico_404(client):
     assert client.get("/api/v1/publico/instrumentos/99999").status_code == 404
 
 
+def test_publico_secoes_lista_distintas(client):
+    r = client.get("/api/v1/publico/secoes")
+    assert r.status_code == 200
+    secoes = r.json()
+    assert secoes == ["Eletrônica", "Metrologia"]  # distintas, ordenadas
+
+
+def test_publico_instrumentos_por_secao(client):
+    r = client.get("/api/v1/publico/instrumentos", params={"secao": "Eletrônica"})
+    assert r.status_code == 200
+    itens = r.json()
+    assert {i["codigo_interno"] for i in itens} == {"A-1", "A-3"}
+    assert all(i["secao"] == "Eletrônica" for i in itens)
+
+
+def test_publico_instrumentos_secao_inexistente(client):
+    r = client.get("/api/v1/publico/instrumentos", params={"secao": "Inexistente"})
+    assert r.status_code == 200
+    assert r.json() == []
+
+
 def test_publico_nao_vaza_campos_sensiveis(client):
     iid = _id_por_codigo(client, "A-1")
     b = client.get(f"/api/v1/publico/instrumentos/{iid}").json()

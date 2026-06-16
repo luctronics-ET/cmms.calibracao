@@ -34,7 +34,7 @@
     <th data-col="modelo" data-filtro="modelo">Modelo</th>
     <th data-col="codigo">Cód. interno</th>
     <th data-col="serial">Série</th>
-    <th data-col="sistema" data-filtro="sistema">Sistema</th>
+    <th data-col="setor" data-filtro="setor">Setor</th>
     <th data-col="status" data-filtro="status">Status</th>
     <th data-col="data_validade">Validade</th>
     <th data-col="classe" data-filtro="classe">Prioridade</th>
@@ -179,7 +179,7 @@ function renderLinhas() {
       <td>${esc(i.modelo)}</td>
       <td>${esc(i.codigo_interno || i.codigo_patrimonial)}</td>
       <td>${esc(i.serial)}</td>
-      <td>${esc(i.sistema)}</td>
+      <td>${esc(i.setor)}</td>
       <td>${badgeStatus(i.status)}</td>
       <td>${fmtData(i.data_validade)}</td>
       <td>${badgePrioridade(i)}</td></tr>`).join("")

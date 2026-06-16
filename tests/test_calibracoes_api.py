@@ -161,3 +161,81 @@ def test_backfill_cria_calibracao_origem_e_e_idempotente(client):
     assert n2 == 0
     assert db.query(models.Calibracao).filter_by(instrumento_id=inst.id).count() == 1
     db.close()
+
+
+# ── D: vínculo calibração ↔ item de contrato ────────────────────────────────
+from datetime import timedelta
+
+
+def _contrato_item_vigente(client, quantidade=10, valor=50.0, usado=0, dias_fim=400):
+    lab = client.post("/api/v1/laboratorios", json={"razao_social": "Lab MQT"}).json()
+    fim = str(date.today() + timedelta(days=dias_fim))
+    c = client.post("/api/v1/contratos", json={
+        "numero": "ATA D", "tipo": "ATA", "laboratorio_id": lab["id"],
+        "valor_total": 1000.0, "vigencia_fim": fim}).json()
+    client.post(f"/api/v1/contratos/{c['id']}/itens", json={
+        "numero": "1", "descricao": "Cal", "quantidade": quantidade,
+        "valor_unitario": valor, "usado": usado})
+    c = client.get(f"/api/v1/contratos/{c['id']}").json()
+    return lab, c, c["itens"][0]
+
+
+def test_calibracao_vinculada_consome_saldo_e_herda_preco_lab(client):
+    iid = _id_primeiro(client)
+    lab, c, item = _contrato_item_vigente(client, valor=77.0, usado=0)
+    r = client.post(f"/api/v1/instrumentos/{iid}/calibracoes", json={
+        "data_calibracao": "2026-03-10", "item_contrato_id": item["id"]})
+    assert r.status_code == 201
+    cal = r.json()["calibracao"]
+    assert cal["custo"] == 77.0                     # preço do item
+    assert cal["laboratorio_id"] == lab["id"]       # lab herdado do contrato
+    assert cal["item_contrato_id"] == item["id"]
+    assert cal["contrato_numero"] == c["numero"]
+    # saldo consumido: usado passou de 0 -> 1
+    c2 = client.get(f"/api/v1/contratos/{c['id']}").json()
+    assert c2["itens"][0]["usado"] == 1
+
+
+def test_calibracao_contrato_vencido_bloqueia(client):
+    iid = _id_primeiro(client)
+    _, c, item = _contrato_item_vigente(client, dias_fim=-5)  # vencido
+    r = client.post(f"/api/v1/instrumentos/{iid}/calibracoes", json={
+        "data_calibracao": "2026-03-10", "item_contrato_id": item["id"]})
+    assert r.status_code == 409
+
+
+def test_calibracao_item_esgotado_bloqueia(client):
+    iid = _id_primeiro(client)
+    _, c, item = _contrato_item_vigente(client, quantidade=1, usado=1)  # sem saldo
+    r = client.post(f"/api/v1/instrumentos/{iid}/calibracoes", json={
+        "data_calibracao": "2026-03-10", "item_contrato_id": item["id"]})
+    assert r.status_code == 409
+
+
+def test_calibracao_item_inexistente_404(client):
+    iid = _id_primeiro(client)
+    r = client.post(f"/api/v1/instrumentos/{iid}/calibracoes", json={
+        "data_calibracao": "2026-03-10", "item_contrato_id": 99999})
+    assert r.status_code == 404
+
+
+def test_delete_calibracao_vinculada_devolve_saldo(client):
+    iid = _id_primeiro(client)
+    _, c, item = _contrato_item_vigente(client, usado=0)
+    cal = client.post(f"/api/v1/instrumentos/{iid}/calibracoes", json={
+        "data_calibracao": "2026-03-10", "item_contrato_id": item["id"]}).json()["calibracao"]
+    assert client.get(f"/api/v1/contratos/{c['id']}").json()["itens"][0]["usado"] == 1
+    client.delete(f"/api/v1/instrumentos/{iid}/calibracoes/{cal['id']}")
+    assert client.get(f"/api/v1/contratos/{c['id']}").json()["itens"][0]["usado"] == 0
+
+
+def test_lista_calibracoes_recentes(client):
+    iid = _id_primeiro(client)
+    client.post(f"/api/v1/instrumentos/{iid}/calibracoes", json={
+        "data_calibracao": "2026-05-01", "laboratorio": "RBC Z"})
+    r = client.get("/api/v1/calibracoes")
+    assert r.status_code == 200
+    b = r.json()
+    assert b["total"] >= 1
+    assert b["itens"][0]["instrumento_id"] == iid
+    assert "instrumento_codigo" in b["itens"][0]
