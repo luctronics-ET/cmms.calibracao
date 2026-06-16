@@ -182,7 +182,7 @@ function montarTabela(cfg) {
         ${expBtns}
         <span class="cont-itens tb-cont"></span>
       </div>
-      ${cfg.headerExtra ? `<span class="tb-extra">${cfg.headerExtra}</span>` : ""}
+      <span class="tb-extra">${cfg.headerExtra || ""}</span>
     </div>
     <div class="twrap"><table class="tb-tab"><thead><tr>
       ${cfg.checkbox ? '<th class="chk"><input type="checkbox" class="tb-all"></th>' : ""}

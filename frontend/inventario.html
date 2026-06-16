@@ -9,18 +9,20 @@
 </head><body class="app">
 <script src="app.js"></script>
 <main class="main">
-  <h1>Inventário de Instrumentos</h1>
-  <div class="toolbar">
-    <input type="search" id="busca" placeholder="Buscar por código, série, equipamento...">
-    <button class="btn ghost" id="btnLimparFiltros"><i class="bi bi-funnel"></i> Limpar</button>
-    <div class="export-grp">
-      <span class="muted">Exportar:</span>
-      <button class="btn ghost" data-exp="pdf">PDF</button>
-      <button class="btn ghost" data-exp="xlsx">XLS</button>
-      <button class="btn ghost" data-exp="csv">CSV</button>
+  <div class="tb-header">
+    <h1 class="tb-titulo">Inventário de Instrumentos</h1>
+    <div class="tb-tools">
+      <input type="search" id="busca" placeholder="Buscar por código, série, equipamento...">
+      <button class="btn ghost" id="btnLimparFiltros"><i class="bi bi-funnel"></i> Limpar</button>
+      <div class="export-grp">
+        <span class="muted">Exportar:</span>
+        <button class="btn ghost" data-exp="pdf">PDF</button>
+        <button class="btn ghost" data-exp="xlsx">XLS</button>
+        <button class="btn ghost" data-exp="csv">CSV</button>
+      </div>
+      <span class="cont-itens" id="cont"></span>
     </div>
-    <button class="btn ghost" id="btnEtiquetas"><i class="bi bi-tag"></i> Etiquetas</button>
-    <span class="cont-itens" id="cont" style="margin-left:auto"></span>
+    <span class="tb-extra"><button class="btn ghost" id="btnEtiquetas"><i class="bi bi-tag"></i> Etiquetas</button></span>
   </div>
   <div class="selbar" id="selbar" style="display:none">
     <b id="selcount">0 selecionado(s)</b>
