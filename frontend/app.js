@@ -1,4 +1,4 @@
-// SisCalib — SDK + helpers de UI (vanilla). Inspirado em xcmasm-sdk.js.
+// sisCalibracao — SDK + helpers de UI (vanilla). Inspirado em xcmasm-sdk.js.
 const API = "/api/v1";
 
 // ── Tema (claro/escuro) ─────────────────────────────────────────────────────
@@ -85,7 +85,7 @@ function montarShell(ativo) {
   ).join("");
   document.body.insertAdjacentHTML("afterbegin", `
     <div class="sb">
-      <div class="sb-logo"><img src="vendor/Logo_of_the_Brazilian_Navy.svg.png" alt="MB"> SisCalib</div>
+      <div class="sb-logo"><img src="vendor/icons/gauge.png" alt="MB"> sisCalibracao</div>
       ${links}
     </div>`);
   const main = document.querySelector(".main");
