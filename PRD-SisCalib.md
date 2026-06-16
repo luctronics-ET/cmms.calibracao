@@ -29,13 +29,17 @@ Snapshot do que está **entregue e mergeado em `main`** vs. pendente. Stack real
 | Exportação CSV/XLSX/PDF | ✅ Entregue | `POST /api/v1/instrumentos/export`; CSV UTF-8-BOM, XLSX openpyxl, PDF resumo fpdf2 |
 | **Registro de calibrações (6.2)** | ✅ Entregue | entidade `calibracao` (histórico 1→N), `backend/routers/calibracoes.py` (GET histórico, POST registrar, upload certificado PDF, DELETE); validade/status do instrumento **derivados** da última calibração; REPROVADO bloqueia (validade null + status REPROVADO); backfill `origem=IMPORTACAO` no startup; UI na ficha + página `calibracao.html` |
 | **Gestão de laboratórios (6.4)** | ✅ Entregue | entidade `laboratorio` (razão social, CNPJ, contato, acreditação CGCRE/RBC, escopo texto-livre, validade), `backend/routers/laboratorios.py` (CRUD + `/alertas` + histórico por lab); status de acreditação reusa `calcular_status`; calibração ganhou FK opcional `laboratorio_id` com **snapshot** dos dados do lab; UI `laboratorios.html` + select no form de calibração + seção "Acreditações a vencer" em `alertas.html` |
-| **Contratos & Saldo da ATA (6.14, parcial)** | ✅ Entregue | entidades `contrato`/`item_contrato`, saldo derivado por item e agregado, alertas de vigência/saldo; consumo `usado` manual (automático virá com os Lotes) |
-| **Catálogo de Preços (6.14/6.15, base de custos)** | ✅ Entregue | tabela `catalogo_preco` (preço por tipo × fornecedor, vínculo opcional a item de contrato); seed da ATA 129/2025 no startup (16/28 tipos casados por substring; não-casados logados); página `catalogo.html` |
+| **Contratos & Saldo da ATA (6.14)** | ✅ Entregue | entidades `contrato`/`item_contrato`; **fornecedor = laboratório (FK obrigatória)**; saldo derivado por item e agregado; alertas de vigência/saldo; UI separa **Vigentes / Finalizados** (vencido ou esgotado) |
+| **Vínculo calibração → contrato (6.14)** | ✅ Entregue | `calibracao.item_contrato_id` (opcional); só item de **contrato vigente**; herda custo (preço do item) e laboratório; **consome 1 unidade do saldo**; excluir devolve o saldo |
+| **Catálogo de Calibração (6.15, base de custos)** | ✅ Entregue | **visão derivada read-only dos itens de contrato** (preço, saldo, vigência por laboratório); `GET /api/v1/catalogo`; substitui a antiga tabela `catalogo_preco` (removida) |
 | **Etiquetas com QR Code (6.6)** | ✅ Entregue | `etiquetas.html` (QR client-side, lib MIT vendorizada, impressão individual/lote) + ficha pública `publica.html` ← `GET /api/v1/publico/instrumentos/{id}` (curado) |
-| Página pública **por instrumento** (QR) | ✅ Entregue | `publica.html?id=N` sem login; a página pública **por seção** (visão geral) segue pendente |
+| Páginas públicas (QR) | ✅ Entregue | `publica.html?id=N` (instrumento) e `publica-secao.html?secao=X` (painel por setor), sem login; `GET /publico/secoes` e `/publico/instrumentos?secao=` |
+| Tabelas padronizadas | ✅ Entregue | motor `montarTabela` (busca + filtro por coluna + ordenação + export CSV + checkbox); header unificado; tema claro/escuro e sidebar retrátil |
 | Autenticação JWT | ⬜ Pendente | sistema roda sem login na rede local interna |
 
-**Eixos de classificação reais no instrumento:** Disciplina (ELE/MEC), Família metrológica (FK), Tipo (FK), Grandeza (FK), Unidade (FK), e os 5 fatores IGP (fu, nc, ab, cm, ci).
+**Eixos de classificação reais no instrumento:** Disciplina (ELE/MEC), **Setor** (ex.: EXOCET, MK-48, MK-46, F-21 — antes chamado "sistema"), Seção (sub-parte, opcional), Família metrológica (FK), Tipo (FK), Grandeza (FK), Unidade (FK), e os 5 fatores IGP (fu, nc, ab, cm, ci).
+
+> **Marca:** o sistema foi renomeado de "SisCalib" para **sisCalibracao** (logo/favicon `gauge`).
 
 ---
 
@@ -393,11 +397,11 @@ Esta funcionalidade permite que a Seção de Eletrônica (ou outro setor autoriz
 
 ### FASE 3 — Gestão e Planejamento (P1 — Deve ter na v3)
 
-#### 6.14 Gestão de Contratos e ARPs ✅ Parcial (entidades `contrato`/`item_contrato`)
-- [x] Cadastro de contratos: número, processo, fornecedor, vigência, valor total, saldo
+#### 6.14 Gestão de Contratos e ARPs ✅ Entregue (entidades `contrato`/`item_contrato`)
+- [x] Cadastro de contratos: número, processo, **fornecedor = laboratório (FK)**, vigência, valor total, saldo
 - [x] Suporte a ARPs (Atas de Registro de Preços) com controle de saldo por item
-- [ ] Vinculação de cada calibração ao contrato correspondente
-- [x] Alerta de contrato próximo do vencimento ou com saldo baixo
+- [x] Vinculação de cada calibração a um item de contrato vigente (consome saldo, herda custo/laboratório)
+- [x] Alerta de contrato próximo do vencimento ou com saldo baixo; UI Vigentes / Finalizados
 - [ ] Integração com dados do PNCP para consulta de ARPs vigentes
 
 #### 6.15 Plano Anual de Calibração
