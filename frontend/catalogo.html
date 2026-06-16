@@ -9,64 +9,40 @@
 </head><body class="app">
 <script src="app.js"></script>
 <main class="main">
-  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-    <h1 style="margin:0">Catálogo de Calibração</h1>
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-      <select id="fLab"><option value="">Todos os laboratórios</option></select>
-      <label class="muted" style="display:flex;align-items:center;gap:6px;font-size:13px">
-        <input type="checkbox" id="fVig"> só vigentes</label>
-    </div>
-  </div>
-  <p class="muted" style="margin:6px 0 0">Serviços de calibração dos contratos — preço, saldo e vigência por laboratório.</p>
-  <div class="muted" id="cont" style="margin:10px 0 8px"></div>
-  <div class="twrap"><table id="tab"><thead><tr>
-    <th>Laboratório</th><th>Contrato</th><th>Serviço (item)</th><th>Preço</th>
-    <th>Saldo (qtd)</th><th>Valor saldo</th><th>Vigência</th></tr></thead><tbody></tbody></table></div>
+  <h1>Catálogo de Calibração</h1>
+  <p class="muted" style="margin:-6px 0 12px">Serviços de calibração dos contratos — preço, saldo e vigência por laboratório.</p>
+  <div id="tabela"></div>
 </main>
 <script>
 montarShell("catalogo.html");
-const cont = document.getElementById("cont");
-const tbody = document.querySelector("#tab tbody");
-const fLab = document.getElementById("fLab");
-const fVig = document.getElementById("fVig");
 
 function money(n) {
   return "R$ " + Number(n || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+const VIG_ORDEM = ["VENCIDO", "A_VENCER_7", "A_VENCER_30", "A_VENCER_60", "VALIDO", "SEM_DATA"];
 
-async function carregarLabs() {
-  try {
-    const { itens } = await SDK.get("/laboratorios");
-    for (const l of itens) fLab.add(new Option(l.razao_social, l.id));
-  } catch (e) { /* sem labs */ }
-}
+const tabela = montarTabela({
+  el: document.getElementById("tabela"),
+  exportNome: "catalogo",
+  buscaValor: r => [r.laboratorio, r.contrato_numero, r.descricao].filter(Boolean).join(" "),
+  colunas: [
+    { key: "laboratorio", label: "Laboratório", filtro: true, render: r => esc(r.laboratorio) || "—" },
+    { key: "contrato_numero", label: "Contrato", filtro: true,
+      render: r => `${esc(r.contrato_numero)} <span class="bdg slate">${esc(r.contrato_tipo)}</span>` },
+    { key: "descricao", label: "Serviço (item)",
+      render: r => `${esc(r.descricao) || "—"}${r.item_numero ? ` <span class="muted">· item ${esc(r.item_numero)}</span>` : ""}` },
+    { key: "preco", label: "Preço", valor: r => r.preco || 0, render: r => money(r.preco) },
+    { key: "saldo", label: "Saldo (qtd)", valor: r => r.saldo, render: r => `${r.saldo} / ${r.quantidade}` },
+    { key: "valor_saldo", label: "Valor saldo", valor: r => r.valor_saldo, render: r => money(r.valor_saldo) },
+    { key: "status_vigencia", label: "Vigência", filtro: true, ordem: VIG_ORDEM,
+      valor: r => r.status_vigencia, rotulo: v => STATUS_LABEL[v] || v,
+      render: r => `${fmtData(r.vigencia_fim)} ${badgeStatus(r.status_vigencia)}` },
+  ],
+});
 
-async function carregar() {
-  const q = {};
-  if (fLab.value) q.laboratorio_id = Number(fLab.value);
-  if (fVig.checked) q.apenas_vigentes = true;
-  let dados;
-  try { dados = await SDK.get("/catalogo", Object.keys(q).length ? q : undefined); }
-  catch (err) {
-    tbody.innerHTML = `<tr><td colspan="7" class="sev-erro">Falha ao carregar: ${esc(err.message)}</td></tr>`;
-    return;
-  }
-  cont.textContent = `${dados.total} serviço(s)`;
-  tbody.innerHTML = dados.itens.map(c => `
-    <tr${c.vigente ? "" : ' style="opacity:.55"'}>
-      <td>${esc(c.laboratorio) || "—"}</td>
-      <td>${esc(c.contrato_numero)} <span class="bdg slate">${esc(c.contrato_tipo)}</span></td>
-      <td>${esc(c.descricao) || "—"}${c.item_numero ? ` <span class="muted">· item ${esc(c.item_numero)}</span>` : ""}</td>
-      <td>${money(c.preco)}</td>
-      <td>${c.saldo} / ${c.quantidade}</td>
-      <td>${money(c.valor_saldo)}</td>
-      <td>${fmtData(c.vigencia_fim)} ${badgeStatus(c.status_vigencia)}</td>
-    </tr>`).join("") || `<tr><td colspan="7" class="muted">Nenhum serviço de calibração em contrato.</td></tr>`;
-}
-
-fLab.onchange = carregar;
-fVig.onchange = carregar;
-carregarLabs();
-carregar();
+(async () => {
+  try { tabela.setDados((await SDK.get("/catalogo")).itens); }
+  catch (err) { /* vazio */ }
+})();
 </script>
 </body></html>

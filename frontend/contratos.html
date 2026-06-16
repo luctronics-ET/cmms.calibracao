@@ -24,76 +24,61 @@
     <h1 style="margin:0">Contratos &amp; Saldo da ATA</h1>
     <button class="btn" id="btnNovo"><i class="bi bi-plus-lg"></i> Novo contrato</button>
   </div>
-  <div class="muted" id="cont" style="margin:10px 0 8px"></div>
-
   <h2 style="font-size:15px;margin:8px 0">Vigentes</h2>
-  <div class="twrap"><table id="tabVig"><thead><tr>
-    <th>Número</th><th>Tipo</th><th>Fornecedor</th><th>Vigência</th>
-    <th>Valor total</th><th>Saldo</th><th>Ações</th></tr></thead><tbody></tbody></table></div>
-
+  <div id="tabVig"></div>
   <h2 style="font-size:15px;margin:18px 0 8px;color:var(--tx2)">Finalizados</h2>
-  <div class="twrap"><table id="tabFin"><thead><tr>
-    <th>Número</th><th>Tipo</th><th>Fornecedor</th><th>Vigência</th>
-    <th>Valor total</th><th>Saldo</th><th>Ações</th></tr></thead><tbody></tbody></table></div>
+  <div id="tabFin"></div>
 </main>
 <script>
 montarShell("contratos.html");
-const cont = document.getElementById("cont");
-const tbodyVig = document.querySelector("#tabVig tbody");
-const tbodyFin = document.querySelector("#tabFin tbody");
 
 function money(n) {
   return "R$ " + Number(n || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
-
 // Finalizado = vencido OU saldo esgotado. Vigente = o resto.
 function ehFinalizado(c) {
   return c.status_vigencia === "VENCIDO" || c.status_saldo === "ESGOTADO";
 }
 
-function linhaContrato(c) {
-  return `<tr>
-      <td>${esc(c.numero)}</td>
-      <td>${esc(c.tipo)}</td>
-      <td>${esc(c.laboratorio) || "—"}</td>
-      <td>${fmtData(c.vigencia_fim)} ${badgeStatus(c.status_vigencia)}</td>
-      <td>${money(c.valor_total)}</td>
-      <td>${money(c.valor_saldo_total)} <span class="bdg saldo-${esc(c.status_saldo)}">${esc(c.status_saldo)}</span></td>
-      <td>
-        <button class="btn ghost ct-open" data-id="${c.id}" style="padding:2px 8px">Abrir</button>
-        <button class="btn ghost ct-edit" data-id="${c.id}" style="padding:2px 8px">Editar</button>
-        <button class="btn ghost ct-del" data-id="${c.id}" style="padding:2px 8px">Excluir</button>
-      </td>
-    </tr>`;
+function colsContrato() {
+  return [
+    { key: "numero", label: "Número" },
+    { key: "tipo", label: "Tipo", filtro: true },
+    { key: "laboratorio", label: "Fornecedor", filtro: true, render: c => esc(c.laboratorio) || "—" },
+    { key: "vigencia_fim", label: "Vigência", valor: c => c.vigencia_fim || "9999",
+      render: c => `${fmtData(c.vigencia_fim)} ${badgeStatus(c.status_vigencia)}` },
+    { key: "valor_total", label: "Valor total", valor: c => c.valor_total || 0, render: c => money(c.valor_total) },
+    { key: "valor_saldo_total", label: "Saldo", valor: c => c.valor_saldo_total || 0,
+      render: c => `${money(c.valor_saldo_total)} <span class="bdg saldo-${esc(c.status_saldo)}">${esc(c.status_saldo)}</span>` },
+  ];
 }
+const acoesContrato = c => `<button class="btn ghost ct-open" data-id="${c.id}" style="padding:2px 8px">Abrir</button>
+    <button class="btn ghost ct-edit" data-id="${c.id}" style="padding:2px 8px">Editar</button>
+    <button class="btn ghost ct-del" data-id="${c.id}" style="padding:2px 8px">Excluir</button>`;
 
-function bindAcoes(tbody) {
-  tbody.querySelectorAll(".ct-open").forEach(b => b.onclick = () => abrirDetalhe(Number(b.dataset.id)));
-  tbody.querySelectorAll(".ct-edit").forEach(b => b.onclick = () => abrirForm(Number(b.dataset.id)));
-  tbody.querySelectorAll(".ct-del").forEach(b => b.onclick = async () => {
+const tabVig = montarTabela({ el: document.getElementById("tabVig"), exportNome: "contratos-vigentes",
+  buscaValor: c => [c.numero, c.laboratorio, c.tipo].filter(Boolean).join(" "), colunas: colsContrato(), acoes: acoesContrato });
+const tabFin = montarTabela({ el: document.getElementById("tabFin"), exportNome: "contratos-finalizados",
+  buscaValor: c => [c.numero, c.laboratorio, c.tipo].filter(Boolean).join(" "), colunas: colsContrato(), acoes: acoesContrato });
+
+document.querySelector("main").addEventListener("click", async (e) => {
+  const op = e.target.closest(".ct-open"); if (op) return abrirDetalhe(Number(op.dataset.id));
+  const ed = e.target.closest(".ct-edit"); if (ed) return abrirForm(Number(ed.dataset.id));
+  const dl = e.target.closest(".ct-del");
+  if (dl) {
     if (!confirm("Excluir este contrato?")) return;
-    b.disabled = true;
-    try { await SDK.del("/contratos/" + b.dataset.id); await carregar(); }
-    catch (err) { alert("Falha ao excluir: " + err.message); b.disabled = false; }
-  });
-}
+    dl.disabled = true;
+    try { await SDK.del("/contratos/" + dl.dataset.id); await carregar(); }
+    catch (err) { alert("Falha ao excluir: " + err.message); dl.disabled = false; }
+  }
+});
 
 async function carregar() {
   let dados;
   try { dados = await SDK.get("/contratos"); }
-  catch (err) {
-    tbodyVig.innerHTML = `<tr><td colspan="7" class="sev-erro">Falha ao carregar: ${esc(err.message)}</td></tr>`;
-    return;
-  }
-  cont.textContent = `${dados.total} contrato(s)`;
-  const vig = dados.itens.filter(c => !ehFinalizado(c));
-  const fin = dados.itens.filter(ehFinalizado);
-  tbodyVig.innerHTML = vig.map(linhaContrato).join("") ||
-    `<tr><td colspan="7" class="muted">Nenhum contrato vigente.</td></tr>`;
-  tbodyFin.innerHTML = fin.map(linhaContrato).join("") ||
-    `<tr><td colspan="7" class="muted">Nenhum contrato finalizado.</td></tr>`;
-  bindAcoes(tbodyVig);
-  bindAcoes(tbodyFin);
+  catch (err) { return; }
+  tabVig.setDados(dados.itens.filter(c => !ehFinalizado(c)));
+  tabFin.setDados(dados.itens.filter(ehFinalizado));
 }
 
 // ── Formulário de contrato (Novo/Editar) ────────────────────────────────────

@@ -79,22 +79,44 @@ const NAV = [
   ["importar.html", "upload", "Importar"],
 ];
 
+const SB_KEY = "siscalib-sb-collapsed";
+
+function atualizarIconeCollapse() {
+  const sb = document.getElementById("sb");
+  const b = document.getElementById("sbCollapse");
+  if (!sb || !b) return;
+  const col = sb.classList.contains("collapsed");
+  b.innerHTML = `<i class="bi bi-chevron-${col ? "right" : "left"}"></i>`;
+  b.title = col ? "Expandir menu" : "Recolher menu";
+  b.setAttribute("aria-label", b.title);
+}
+
 function montarShell(ativo) {
   const links = NAV.map(([h, ic, lbl]) =>
-    `<a href="${h}" class="${h === ativo ? "act" : ""}"><i class="bi bi-${ic}"></i> ${lbl}</a>`
+    `<a href="${h}" class="${h === ativo ? "act" : ""}" title="${lbl}"><i class="bi bi-${ic}"></i><span class="lbl">${lbl}</span></a>`
   ).join("");
   document.body.insertAdjacentHTML("afterbegin", `
-    <div class="sb">
-      <div class="sb-logo"><img src="vendor/icons/gauge.png" alt="MB"> sisCalibracao</div>
-      ${links}
+    <div class="sb" id="sb">
+      <div class="sb-logo"><img src="vendor/icons/gauge.png" alt=""><span class="lbl">sisCalibracao</span></div>
+      <nav class="sb-nav">${links}</nav>
+      <div class="sb-foot">
+        <div class="sb-foot-btns">
+          <button id="themeToggle" class="sb-btn" type="button"></button>
+          <button id="sbCollapse" class="sb-btn" type="button"></button>
+        </div>
+        <div class="sb-ver">sisCalibracao.v00.26.06.16<br>CMASM-132</div>
+      </div>
     </div>`);
-  const main = document.querySelector(".main");
-  if (main) {
-    main.insertAdjacentHTML("afterbegin",
-      `<div class="topbar"><button id="themeToggle" class="theme-toggle" type="button"></button></div>`);
-    main.querySelector("#themeToggle").addEventListener("click", alternarTema);
-    atualizarIconeTema();
-  }
+  const sb = document.getElementById("sb");
+  if (localStorage.getItem(SB_KEY) === "1") sb.classList.add("collapsed");
+  document.getElementById("themeToggle").addEventListener("click", alternarTema);
+  document.getElementById("sbCollapse").addEventListener("click", () => {
+    sb.classList.toggle("collapsed");
+    localStorage.setItem(SB_KEY, sb.classList.contains("collapsed") ? "1" : "0");
+    atualizarIconeCollapse();
+  });
+  atualizarIconeTema();
+  atualizarIconeCollapse();
 }
 
 // ── Domínios e IGP (cadastro) ───────────────────────────────────────────────
@@ -133,6 +155,170 @@ function calcIgpClient(fu, nc, ab, cm, ci) {
   else if (igp >= 11) classe = "BAIXA";
   return { igp, classe };
 }
+
+// ── Tabela reutilizável (busca + filtro + ordenação + export + checkbox) ─────
+// cfg: { el, colunas:[{key,label,filtro?,ordenar?(=true),valor?(r),render?(r),ordem?[]}],
+//        dados?, buscaValor?(r)=>str, checkbox?, acoes?(r)=>html, onClickLinha?(r),
+//        exportNome?, semExport? }
+// Reusa as classes CSS .toolbar/.export-grp/.cont-itens/.bi-funnel/.filtro-pop (mesma aparência).
+function _semAcento(s) { return String(s ?? "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase(); }
+
+function montarTabela(cfg) {
+  const cols = cfg.colunas;
+  const st = { todos: cfg.dados || [], vis: [], filtros: {}, ord: { col: null, dir: null }, sel: new Set() };
+  const idDe = r => r.id ?? r.item_id ?? JSON.stringify(r);
+  const val = (r, c) => (c.valor ? c.valor(r) : (r[c.key] == null ? "" : r[c.key]));
+  const buscaVal = cfg.buscaValor || (r => cols.map(c => val(r, c)).join(" "));
+
+  const expBtns = cfg.semExport ? "" :
+    `<div class="export-grp"><span class="muted">Exportar:</span>
+       <button class="btn ghost" data-exp="csv">CSV</button></div>`;
+  cfg.el.innerHTML = `
+    <div class="toolbar">
+      <input type="search" class="tb-busca" placeholder="Buscar...">
+      <button class="btn ghost tb-limpar"><i class="bi bi-funnel"></i> Limpar</button>
+      ${expBtns}
+      <span class="cont-itens tb-cont" style="margin-left:auto"></span>
+    </div>
+    <div class="twrap"><table class="tb-tab"><thead><tr>
+      ${cfg.checkbox ? '<th class="chk"><input type="checkbox" class="tb-all"></th>' : ""}
+      ${cols.map(c => `<th data-col="${c.key}"${c.filtro ? ` data-filtro="${c.key}"` : ""}>${esc(c.label)}</th>`).join("")}
+      ${cfg.acoes ? "<th>Ações</th>" : ""}
+    </tr></thead><tbody></tbody></table></div>`;
+
+  const busca = cfg.el.querySelector(".tb-busca");
+  const cont = cfg.el.querySelector(".tb-cont");
+  const tbody = cfg.el.querySelector("tbody");
+  const all = cfg.el.querySelector(".tb-all");
+  const ncols = cols.length + (cfg.checkbox ? 1 : 0) + (cfg.acoes ? 1 : 0);
+
+  function cmp(a, b, c) {
+    if (c.ordem) return c.ordem.indexOf(String(val(a, c))) - c.ordem.indexOf(String(val(b, c)));
+    const x = val(a, c), y = val(b, c);
+    if (typeof x === "number" && typeof y === "number") return x - y;
+    const sx = _semAcento(x), sy = _semAcento(y);
+    return sx < sy ? -1 : sx > sy ? 1 : 0;
+  }
+  function visiveis() {
+    let r = st.todos;
+    if (busca.value.trim()) { const b = _semAcento(busca.value); r = r.filter(x => _semAcento(buscaVal(x)).includes(b)); }
+    for (const [k, sel] of Object.entries(st.filtros))
+      if (sel && sel.size) { const c = cols.find(x => x.key === k); r = r.filter(x => sel.has(String(val(x, c)))); }
+    if (st.ord.col) { const c = cols.find(x => x.key === st.ord.col), s = st.ord.dir === "desc" ? -1 : 1; r = [...r].sort((a, b) => s * cmp(a, b, c)); }
+    return r;
+  }
+  function cabecalhos() {
+    cfg.el.querySelectorAll("thead th[data-col]").forEach(th => {
+      const c = cols.find(x => x.key === th.dataset.col);
+      const base = th.dataset.label || (th.dataset.label = th.textContent.trim());
+      let ind = th.querySelector(".sort-ind");
+      if (!ind) {
+        th.textContent = base;
+        ind = document.createElement("span"); ind.className = "sort-ind"; th.appendChild(ind);
+        if (c.filtro) { const f = document.createElement("i"); f.className = "bi bi-funnel"; f.dataset.filtro = c.key; th.append(" ", f); }
+      }
+      ind.textContent = st.ord.col === c.key ? (st.ord.dir === "asc" ? " ▲" : " ▼") : "";
+      const fn = th.querySelector("i[data-filtro]");
+      if (fn) fn.className = st.filtros[c.key]?.size ? "bi bi-funnel-fill ativo" : "bi bi-funnel";
+    });
+  }
+  function render() {
+    tbody.innerHTML = st.vis.map(r => `<tr data-id="${esc(idDe(r))}">
+      ${cfg.checkbox ? `<td class="chk"><input type="checkbox" class="tb-row" ${st.sel.has(idDe(r)) ? "checked" : ""}></td>` : ""}
+      ${cols.map(c => `<td>${c.render ? c.render(r) : esc(val(r, c))}</td>`).join("")}
+      ${cfg.acoes ? `<td>${cfg.acoes(r)}</td>` : ""}
+    </tr>`).join("") || `<tr><td colspan="${ncols}" class="muted">Nada encontrado.</td></tr>`;
+  }
+  function refrescar() {
+    st.vis = visiveis();
+    cont.textContent = `${st.vis.length}/${st.todos.length}`;
+    cabecalhos(); render();
+    if (all) all.checked = false;
+  }
+
+  // ordenação
+  cfg.el.querySelector("thead").addEventListener("click", e => {
+    if (e.target.closest(".bi-funnel,.bi-funnel-fill")) return;
+    const th = e.target.closest("th[data-col]"); if (!th) return;
+    const c = cols.find(x => x.key === th.dataset.col); if (c.ordenar === false) return;
+    if (st.ord.col !== c.key) st.ord = { col: c.key, dir: "asc" };
+    else if (st.ord.dir === "asc") st.ord.dir = "desc";
+    else st.ord = { col: null, dir: null };
+    refrescar();
+  });
+  // filtro popover (reusa _tbPopover global)
+  cfg.el.addEventListener("click", e => {
+    const g = e.target.closest(".bi-funnel,.bi-funnel-fill"); if (!g) return;
+    e.stopPropagation();
+    const c = cols.find(x => x.key === g.dataset.filtro); if (!c) return;
+    _tbPopover(c, g, st, val, refrescar);
+  });
+  // busca
+  let tmr; busca.oninput = () => { clearTimeout(tmr); tmr = setTimeout(refrescar, 200); };
+  // limpar
+  cfg.el.querySelector(".tb-limpar").onclick = () => { st.filtros = {}; busca.value = ""; st.ord = { col: null, dir: null }; refrescar(); };
+  // checkbox
+  if (cfg.checkbox) {
+    all.onchange = () => { if (all.checked) st.vis.forEach(r => st.sel.add(idDe(r))); else st.sel.clear(); render(); };
+    tbody.addEventListener("change", e => {
+      if (!e.target.classList.contains("tb-row")) return;
+      const id = e.target.closest("tr").dataset.id;
+      if (e.target.checked) st.sel.add(id); else st.sel.delete(id);
+    });
+  }
+  // clique linha
+  if (cfg.onClickLinha) tbody.addEventListener("click", e => {
+    if (e.target.closest("input,button,a")) return;
+    const tr = e.target.closest("tr[data-id]"); if (!tr) return;
+    const r = st.vis.find(x => String(idDe(x)) === tr.dataset.id); if (r) cfg.onClickLinha(r);
+  });
+  // export CSV (selecionados, ou todos visíveis)
+  if (!cfg.semExport) cfg.el.querySelector(".export-grp").addEventListener("click", e => {
+    if (!e.target.closest("[data-exp]")) return;
+    const base = st.sel.size ? st.vis.filter(r => st.sel.has(idDe(r))) : st.vis;
+    if (!base.length) { alert("Nada a exportar."); return; }
+    const cab = cols.map(c => c.label);
+    const linhas = base.map(r => cols.map(c => {
+      const v = String(val(r, c) ?? "").replace(/"/g, '""');
+      return /[",\n]/.test(v) ? `"${v}"` : v;
+    }));
+    const csv = "﻿" + [cab, ...linhas].map(l => l.join(",")).join("\r\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    a.download = (cfg.exportNome || "tabela") + ".csv";
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+  });
+
+  refrescar();
+  return { setDados(d) { st.todos = d; st.sel.clear(); refrescar(); }, refrescar, selecionados: () => [...st.sel] };
+}
+
+// popover de filtro multi-seleção genérico (usado por montarTabela)
+function _tbFechaPop() { document.getElementById("tbPop")?.remove(); document.removeEventListener("click", _tbForaPop, true); }
+function _tbForaPop(e) { const p = document.getElementById("tbPop"); if (p && !p.contains(e.target) && !e.target.closest("[data-filtro]")) _tbFechaPop(); }
+function _tbPopover(c, ancora, st, val, refrescar) {
+  _tbFechaPop();
+  let valores = [...new Set(st.todos.map(r => String(val(r, c))).filter(v => v !== ""))];
+  if (c.ordem) valores.sort((a, b) => c.ordem.indexOf(a) - c.ordem.indexOf(b)); else valores.sort();
+  const sel = st.filtros[c.key] || new Set();
+  const rot = v => c.rotulo ? c.rotulo(v) : v;
+  const pop = document.createElement("div");
+  pop.id = "tbPop"; pop.className = "filtro-pop";
+  pop.innerHTML = `<div class="filtro-acts"><button type="button" data-act="all">Marcar todos</button><button type="button" data-act="none">Limpar</button></div>
+    <div class="filtro-itens">${valores.map(v => `<label><input type="checkbox" value="${esc(v)}" ${sel.has(v) ? "checked" : ""}> ${esc(rot(v))}</label>`).join("") || '<span class="muted">Sem valores</span>'}</div>`;
+  document.body.appendChild(pop);
+  const r = ancora.getBoundingClientRect();
+  pop.style.top = (r.bottom + scrollY + 4) + "px"; pop.style.left = (r.left + scrollX) + "px";
+  pop.addEventListener("change", () => {
+    const m = [...pop.querySelectorAll("input:checked")].map(c => c.value);
+    if (m.length) st.filtros[c.key] = new Set(m); else delete st.filtros[c.key];
+    refrescar();
+  });
+  pop.querySelector('[data-act="all"]').onclick = () => { pop.querySelectorAll("input").forEach(c => c.checked = true); pop.dispatchEvent(new Event("change")); };
+  pop.querySelector('[data-act="none"]').onclick = () => { pop.querySelectorAll("input").forEach(c => c.checked = false); pop.dispatchEvent(new Event("change")); };
+  setTimeout(() => document.addEventListener("click", _tbForaPop, true), 0);
+}
+document.addEventListener("keydown", e => { if (e.key === "Escape") _tbFechaPop(); });
 
 // ── Modal reutilizável ──────────────────────────────────────────────────────
 function _escFechar(e) { if (e.key === "Escape") fecharModal(); }

@@ -10,80 +10,61 @@
 <script src="app.js"></script>
 <main class="main">
   <h1>Painel de Alertas</h1>
-  <div class="toolbar">
-    <select id="disciplina"><option value="">Disciplina</option><option>ELE</option><option>MEC</option></select>
-    <select id="setor"><option value="">Setor</option></select>
-    <a class="btn ghost" id="csv"><i class="bi bi-download"></i> Exportar CSV</a>
-  </div>
-  <div class="muted" id="cont" style="margin-bottom:8px"></div>
-  <div class="twrap"><table id="tab"><thead><tr>
-    <th>Código</th><th>Equipamento</th><th>Setor</th><th>Validade</th>
-    <th>Dias</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+  <div id="tabAlertas"></div>
 
   <h1 style="margin-top:28px">Acreditações a vencer</h1>
-  <div class="twrap"><table id="tabLab"><thead><tr>
-    <th>Laboratório</th><th>CGCRE</th><th>Validade</th><th>Status</th>
-  </tr></thead><tbody></tbody></table></div>
+  <div id="tabLab"></div>
 
   <h1 style="margin-top:28px">Contratos a vencer / saldo baixo</h1>
-  <div class="twrap"><table id="tabCt"><thead><tr>
-    <th>Número</th><th>Fornecedor</th><th>Vigência</th><th>Saldo</th>
-  </tr></thead><tbody></tbody></table></div>
+  <div id="tabCt"></div>
 </main>
 <script>
 montarShell("alertas.html");
-const disciplina = document.getElementById("disciplina"), setor = document.getElementById("setor"),
-      cont = document.getElementById("cont"), csv = document.getElementById("csv");
-function params() { return { disciplina: disciplina.value, setor: setor.value }; }
-async function carregar() {
-  const itens = await SDK.get("/alertas", params());
-  cont.textContent = `${itens.length} alerta(s)`;
-  const u = new URL("/api/v1/alertas", location.origin);
-  u.searchParams.set("formato", "csv");
-  Object.entries(params()).forEach(([k, v]) => v && u.searchParams.set(k, v));
-  csv.href = u;
-  document.querySelector("#tab tbody").innerHTML = itens.map(i => `
-    <tr><td><a href="ficha.html?id=${i.id}">${esc(i.codigo_interno)}</a></td>
-    <td>${esc(i.equipamento)}</td><td>${esc(i.setor)}</td>
-    <td>${fmtData(i.data_validade)}</td>
-    <td>${i.dias_restantes == null ? "—" : i.dias_restantes}</td>
-    <td>${badgeStatus(i.status)}</td></tr>`).join("")
-    || `<tr><td colspan="6" class="muted">Sem alertas.</td></tr>`;
-}
-[disciplina, setor].forEach(e => e.onchange = carregar);
+function money(n) { return "R$ " + Number(n || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+const ST_ORDEM = ["VENCIDO", "A_VENCER_7", "A_VENCER_30", "A_VENCER_60", "VALIDO", "SEM_DATA"];
 
-async function carregarLabs() {
-  const tb = document.querySelector("#tabLab tbody");
-  let itens;
-  try { itens = await SDK.get("/laboratorios/alertas"); }
-  catch (err) { tb.innerHTML = `<tr><td colspan="4" class="sev-erro">Falha: ${esc(err.message)}</td></tr>`; return; }
-  tb.innerHTML = itens.map(l => `
-    <tr><td>${esc(l.razao_social)}</td>
-    <td>${esc(l.numero_cgcre) || "—"}</td>
-    <td>${fmtData(l.acreditacao_validade)}</td>
-    <td>${badgeStatus(l.status_acreditacao)}</td></tr>`).join("")
-    || `<tr><td colspan="4" class="muted">Nenhuma acreditação a vencer.</td></tr>`;
-}
+const tabAlertas = montarTabela({
+  el: document.getElementById("tabAlertas"),
+  exportNome: "alertas",
+  buscaValor: i => [i.codigo_interno, i.equipamento, i.setor].filter(Boolean).join(" "),
+  colunas: [
+    { key: "codigo_interno", label: "Código", render: i => `<a href="ficha.html?id=${i.id}">${esc(i.codigo_interno) || i.id}</a>` },
+    { key: "equipamento", label: "Equipamento", render: i => esc(i.equipamento) || "—" },
+    { key: "disciplina", label: "Disc.", filtro: true, valor: i => i.disciplina || "" },
+    { key: "setor", label: "Setor", filtro: true, render: i => esc(i.setor) || "—" },
+    { key: "data_validade", label: "Validade", valor: i => i.data_validade || "9999", render: i => fmtData(i.data_validade) },
+    { key: "dias_restantes", label: "Dias", valor: i => i.dias_restantes ?? 1e9, render: i => i.dias_restantes == null ? "—" : i.dias_restantes },
+    { key: "status", label: "Status", filtro: true, ordem: ST_ORDEM, valor: i => i.status, rotulo: v => STATUS_LABEL[v] || v, render: i => badgeStatus(i.status) },
+  ],
+});
 
-async function carregarContratos() {
-  const tb = document.querySelector("#tabCt tbody");
-  let itens;
-  try { itens = await SDK.get("/contratos/alertas"); }
-  catch (err) { tb.innerHTML = `<tr><td colspan="4" class="sev-erro">Falha: ${esc(err.message)}</td></tr>`; return; }
-  tb.innerHTML = itens.map(c => `
-    <tr><td>${esc(c.numero)}</td>
-    <td>${esc(c.fornecedor) || "—"}</td>
-    <td>${fmtData(c.vigencia_fim)} ${badgeStatus(c.status_vigencia)}</td>
-    <td><span class="bdg saldo-${esc(c.status_saldo)}">${esc(c.status_saldo)}</span></td></tr>`).join("")
-    || `<tr><td colspan="4" class="muted">Nenhum contrato a vencer ou com saldo baixo.</td></tr>`;
-}
+const tabLab = montarTabela({
+  el: document.getElementById("tabLab"),
+  exportNome: "acreditacoes-a-vencer",
+  buscaValor: l => l.razao_social || "",
+  colunas: [
+    { key: "razao_social", label: "Laboratório" },
+    { key: "numero_cgcre", label: "CGCRE", render: l => esc(l.numero_cgcre) || "—" },
+    { key: "acreditacao_validade", label: "Validade", valor: l => l.acreditacao_validade || "9999", render: l => fmtData(l.acreditacao_validade) },
+    { key: "status_acreditacao", label: "Status", filtro: true, ordem: ST_ORDEM, valor: l => l.status_acreditacao, rotulo: v => STATUS_LABEL[v] || v, render: l => badgeStatus(l.status_acreditacao) },
+  ],
+});
+
+const tabCt = montarTabela({
+  el: document.getElementById("tabCt"),
+  exportNome: "contratos-a-vencer",
+  buscaValor: c => [c.numero, c.laboratorio].filter(Boolean).join(" "),
+  colunas: [
+    { key: "numero", label: "Número" },
+    { key: "laboratorio", label: "Fornecedor", render: c => esc(c.laboratorio) || "—" },
+    { key: "vigencia_fim", label: "Vigência", valor: c => c.vigencia_fim || "9999", render: c => `${fmtData(c.vigencia_fim)} ${badgeStatus(c.status_vigencia)}` },
+    { key: "status_saldo", label: "Saldo", filtro: true, valor: c => c.status_saldo, render: c => `<span class="bdg saldo-${esc(c.status_saldo)}">${esc(c.status_saldo)}</span>` },
+  ],
+});
 
 (async () => {
-  const r = await SDK.get("/instrumentos");
-  [...new Set(r.itens.map(i => i.setor).filter(Boolean))].sort()
-    .forEach(s => setor.add(new Option(s, s)));
-  carregar();
-  carregarLabs();
-  carregarContratos();
+  try { tabAlertas.setDados(await SDK.get("/alertas")); } catch (e) {}
+  try { tabLab.setDados(await SDK.get("/laboratorios/alertas")); } catch (e) {}
+  try { tabCt.setDados(await SDK.get("/contratos/alertas")); } catch (e) {}
 })();
 </script></body></html>

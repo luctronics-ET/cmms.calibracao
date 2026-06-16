@@ -21,44 +21,43 @@
     <h1 style="margin:0">Laboratórios</h1>
     <button class="btn" id="btnNovo"><i class="bi bi-plus-lg"></i> Novo laboratório</button>
   </div>
-  <div class="muted" id="cont" style="margin:10px 0 8px"></div>
-  <div class="twrap"><table id="tab"><thead><tr>
-    <th>Razão social</th><th>CNPJ</th><th>CGCRE</th><th>Acreditação</th>
-    <th>Escopo</th><th>Ações</th></tr></thead><tbody></tbody></table></div>
+  <div id="tabela"></div>
 </main>
 <script>
 montarShell("laboratorios.html");
-const cont = document.getElementById("cont");
-const tbody = document.querySelector("#tab tbody");
+
+const tabela = montarTabela({
+  el: document.getElementById("tabela"),
+  exportNome: "laboratorios",
+  checkbox: true,
+  colunas: [
+    { key: "razao_social", label: "Razão social" },
+    { key: "cnpj", label: "CNPJ", render: l => esc(l.cnpj) || "—" },
+    { key: "numero_cgcre", label: "CGCRE", render: l => esc(l.numero_cgcre) || "—" },
+    { key: "status_acreditacao", label: "Acreditação", filtro: true,
+      valor: l => l.status_acreditacao,
+      render: l => `${fmtData(l.acreditacao_validade)} ${badgeStatus(l.status_acreditacao)}`,
+      rotulo: v => STATUS_LABEL[v] || v },
+    { key: "escopo", label: "Escopo", render: l => esc(l.escopo) || "—" },
+  ],
+  acoes: l => `<button class="btn ghost lab-edit" data-id="${l.id}" style="padding:2px 8px">Editar</button>
+               <button class="btn ghost lab-del" data-id="${l.id}" style="padding:2px 8px">Excluir</button>`,
+});
+
+document.getElementById("tabela").addEventListener("click", async (e) => {
+  const ed = e.target.closest(".lab-edit"); if (ed) return abrirForm(Number(ed.dataset.id));
+  const dl = e.target.closest(".lab-del");
+  if (dl) {
+    if (!confirm("Excluir este laboratório?")) return;
+    dl.disabled = true;
+    try { await SDK.del("/laboratorios/" + dl.dataset.id); await carregar(); }
+    catch (err) { alert("Falha ao excluir: " + err.message); dl.disabled = false; }
+  }
+});
 
 async function carregar() {
-  let dados;
-  try { dados = await SDK.get("/laboratorios"); }
-  catch (err) {
-    tbody.innerHTML = `<tr><td colspan="6" class="sev-erro">Falha ao carregar: ${esc(err.message)}</td></tr>`;
-    return;
-  }
-  cont.textContent = `${dados.total} laboratório(s)`;
-  tbody.innerHTML = dados.itens.map(l => `
-    <tr>
-      <td>${esc(l.razao_social)}</td>
-      <td>${esc(l.cnpj) || "—"}</td>
-      <td>${esc(l.numero_cgcre) || "—"}</td>
-      <td>${fmtData(l.acreditacao_validade)} ${badgeStatus(l.status_acreditacao)}</td>
-      <td>${esc(l.escopo) || "—"}</td>
-      <td>
-        <button class="btn ghost lab-edit" data-id="${l.id}" style="padding:2px 8px">Editar</button>
-        <button class="btn ghost lab-del" data-id="${l.id}" style="padding:2px 8px">Excluir</button>
-      </td>
-    </tr>`).join("") || `<tr><td colspan="6" class="muted">Nenhum laboratório cadastrado.</td></tr>`;
-
-  tbody.querySelectorAll(".lab-edit").forEach(b => b.onclick = () => abrirForm(Number(b.dataset.id)));
-  tbody.querySelectorAll(".lab-del").forEach(b => b.onclick = async () => {
-    if (!confirm("Excluir este laboratório?")) return;
-    b.disabled = true;
-    try { await SDK.del("/laboratorios/" + b.dataset.id); await carregar(); }
-    catch (err) { alert("Falha ao excluir: " + err.message); b.disabled = false; }
-  });
+  try { tabela.setDados((await SDK.get("/laboratorios")).itens); }
+  catch (err) { /* toolbar fica vazia */ }
 }
 
 function formHtml(l) {
