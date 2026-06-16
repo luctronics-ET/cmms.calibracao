@@ -182,7 +182,7 @@ function montarTabela(cfg) {
     </div>
     <div class="twrap"><table class="tb-tab"><thead><tr>
       ${cfg.checkbox ? '<th class="chk"><input type="checkbox" class="tb-all"></th>' : ""}
-      ${cols.map(c => `<th data-col="${c.key}"${c.filtro ? ` data-filtro="${c.key}"` : ""}>${esc(c.label)}</th>`).join("")}
+      ${cols.map(c => `<th data-col="${c.key}"${c.filtro === false ? "" : ` data-filtro="${c.key}"`}>${esc(c.label)}</th>`).join("")}
       ${cfg.acoes ? "<th>Ações</th>" : ""}
     </tr></thead><tbody></tbody></table></div>`;
 
@@ -215,7 +215,7 @@ function montarTabela(cfg) {
       if (!ind) {
         th.textContent = base;
         ind = document.createElement("span"); ind.className = "sort-ind"; th.appendChild(ind);
-        if (c.filtro) { const f = document.createElement("i"); f.className = "bi bi-funnel"; f.dataset.filtro = c.key; th.append(" ", f); }
+        if (c.filtro !== false) { const f = document.createElement("i"); f.className = "bi bi-funnel"; f.dataset.filtro = c.key; th.append(" ", f); }
       }
       ind.textContent = st.ord.col === c.key ? (st.ord.dir === "asc" ? " ▲" : " ▼") : "";
       const fn = th.querySelector("i[data-filtro]");

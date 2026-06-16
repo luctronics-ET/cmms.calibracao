@@ -58,8 +58,8 @@ h1{font-size:20px;margin-bottom:16px;font-weight:700}
 .kpi .v{font-size:30px;font-weight:700;line-height:1}
 .kpi .l{font-size:12px;color:var(--tx2);margin-top:5px}
 .kpi.red .v{color:var(--red)} .kpi.amber .v{color:var(--amber)} .kpi.blue .v{color:var(--blue)}
-.twrap{overflow-x:auto;border:1px solid var(--bd);border-radius:var(--rl)}
-table{width:100%;border-collapse:collapse;font-size:13px}
+.twrap{overflow-x:auto;border:1px solid var(--bd);border-radius:var(--rl);background:var(--sf)}
+table{width:100%;border-collapse:collapse;font-size:13px;background:var(--sf)}
 thead tr{background:var(--sf2)}
 th{padding:9px 12px;text-align:left;font-size:11px;text-transform:uppercase;
    letter-spacing:.04em;color:var(--tx2);white-space:nowrap}
@@ -99,8 +99,8 @@ th.chk,td.chk{width:34px;text-align:center}
 .campos-pick{display:flex;flex-wrap:wrap;gap:10px 16px;margin-bottom:6px}
 .campos-pick label{display:flex;align-items:center;gap:5px;font-size:13px}
 tbody tr{cursor:pointer}
-#tab thead th[data-col]{cursor:pointer;user-select:none}
-#tab thead th[data-col]:hover{color:var(--tx)}
+#tab thead th[data-col],.tb-tab thead th[data-col]{cursor:pointer;user-select:none}
+#tab thead th[data-col]:hover,.tb-tab thead th[data-col]:hover{color:var(--tx)}
 .bi-funnel,.bi-funnel-fill{cursor:pointer;margin-left:4px;font-size:11px}
 .bi-funnel-fill.ativo,.funil-extra.ativo{color:var(--blue);border-color:var(--blue)}
 .export-grp{display:flex;align-items:center;gap:6px}
