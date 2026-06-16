@@ -16,8 +16,11 @@
 </head><body class="app">
 <script src="app.js"></script>
 <main class="main">
-  <h1>Registro de Calibrações</h1>
-  <div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+    <h1 style="margin:0">Registro de Calibrações</h1>
+    <button class="btn" id="btnCadastrar"><i class="bi bi-plus-lg"></i> Cadastrar calibração</button>
+  </div>
+  <div class="card" style="margin-top:12px">
     <div class="fld" style="position:relative;margin-bottom:0">
       <label>Instrumento</label>
       <input type="search" id="buscaInst" placeholder="Buscar por código, série, equipamento..." autocomplete="off">
@@ -107,5 +110,47 @@ async function selecionar(id) {
   // reuso das funções compartilhadas (app.js): histórico + form + upload
   montarSecaoCalibracoes(i.id, () => { carregarRecentes(); return selecionar(id); });
 }
+
+// ── Modal "Cadastrar calibração": busca instrumento → form ──────────────────
+function abrirCadastro() {
+  const ov = abrirModal("Cadastrar calibração", `
+    <div class="fld" style="position:relative">
+      <label>Instrumento</label>
+      <input type="search" id="mBusca" placeholder="Buscar por código, série, equipamento..." autocomplete="off">
+      <div id="mRes" class="busca-res" style="display:none"></div>
+    </div>
+    <div id="mForm"></div>`, "");
+  const mBusca = ov.querySelector("#mBusca");
+  const mRes = ov.querySelector("#mRes");
+  const mForm = ov.querySelector("#mForm");
+  let t;
+  mBusca.oninput = () => {
+    clearTimeout(t);
+    const q = mBusca.value.trim();
+    if (!q) { mRes.style.display = "none"; return; }
+    t = setTimeout(async () => {
+      let d;
+      try { d = await SDK.get("/instrumentos", { busca: q }); }
+      catch (e) { return; }
+      const itens = d.itens.slice(0, 30);
+      mRes.innerHTML = itens.length
+        ? itens.map(i => `<button data-id="${i.id}"><b>${esc(i.codigo_interno || i.codigo_patrimonial || "(sem código)")}</b> — ${esc(i.equipamento) || ""}</button>`).join("")
+        : '<div class="sub" style="padding:8px 12px">Nada encontrado.</div>';
+      mRes.style.display = "block";
+    }, 200);
+  };
+  mRes.onclick = async (e) => {
+    const btn = e.target.closest("button[data-id]");
+    if (!btn) return;
+    const i = await SDK.get("/instrumentos/" + btn.dataset.id);
+    mRes.style.display = "none";
+    mBusca.value = `${i.codigo_interno || i.codigo_patrimonial || ""} — ${i.equipamento || ""}`;
+    mBusca.disabled = true;
+    mForm.innerHTML = "";
+    mForm.appendChild(renderFormCalibracao(i.id, () => { fecharModal(); carregarRecentes(); }));
+  };
+  mBusca.focus();
+}
+document.getElementById("btnCadastrar").onclick = abrirCadastro;
 </script>
 </body></html>
