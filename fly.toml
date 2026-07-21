@@ -1,32 +1,32 @@
-# fly.toml — SisCalib / xCalibracao
-# CMASM-132 — Sistema de Gestão Metrológica
-# Deploy: flyctl deploy (após flyctl auth login)
+# fly.toml app configuration file generated for xcalibracao on 2026-07-21T03:36:49Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
-app = "siscalib-cmasm"
-primary_region = "gru"   # São Paulo — menor latência
+app = 'xcalibracao'
+primary_region = 'gru'
 
 [build]
-  # Usa o Dockerfile existente na raiz
 
 [env]
-  SISCALIB_DATA = "/data"
+  SISCALIB_DATA = '/data'
 
 [[mounts]]
-  source      = "siscalib_data"
-  destination = "/data"
+  source = 'data'
+  destination = '/data'
 
 [http_service]
-  internal_port        = 8080
-  force_https          = true
-  auto_stop_machines   = false   # não hiberna — acesso contínuo
-  auto_start_machines  = true
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'off'
+  auto_start_machines = true
   min_machines_running = 1
 
   [http_service.concurrency]
-    type       = "connections"
+    type = 'connections'
     hard_limit = 25
     soft_limit = 20
 
 [[vm]]
-  size   = "shared-cpu-1x"   # free tier
-  memory = "256mb"
+  size = 'shared-cpu-1x'
+  memory = '256mb'
