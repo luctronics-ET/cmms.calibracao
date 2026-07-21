@@ -1,0 +1,32 @@
+# fly.toml — SisCalib / xCalibracao
+# CMASM-132 — Sistema de Gestão Metrológica
+# Deploy: flyctl deploy (após flyctl auth login)
+
+app = "siscalib-cmasm"
+primary_region = "gru"   # São Paulo — menor latência
+
+[build]
+  # Usa o Dockerfile existente na raiz
+
+[env]
+  SISCALIB_DATA = "/data"
+
+[[mounts]]
+  source      = "siscalib_data"
+  destination = "/data"
+
+[http_service]
+  internal_port        = 8080
+  force_https          = true
+  auto_stop_machines   = false   # não hiberna — acesso contínuo
+  auto_start_machines  = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type       = "connections"
+    hard_limit = 25
+    soft_limit = 20
+
+[[vm]]
+  size   = "shared-cpu-1x"   # free tier
+  memory = "256mb"
