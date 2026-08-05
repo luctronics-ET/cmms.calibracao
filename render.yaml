@@ -12,4 +12,4 @@ services:
       name: siscalib-data
       mountPath: /data
       sizeGB: 1
-    healthCheckPath: /
+    healthCheckPath: /api/v1/health
