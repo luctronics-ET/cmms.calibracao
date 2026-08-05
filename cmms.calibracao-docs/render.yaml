@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: siscalib-cmasm
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    region: oregon
+    plan: free
+    envVars:
+      - key: SISCALIB_DATA
+        value: /data
+    disk:
+      name: siscalib-data
+      mountPath: /data
+      sizeGB: 1
+    healthCheckPath: /
