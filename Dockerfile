@@ -7,7 +7,7 @@ COPY frontend/ frontend/
 COPY alembic/ alembic/
 COPY alembic.ini entrypoint.sh ./
 RUN chmod +x entrypoint.sh
-ENV SISCALIB_DATA=/data
-VOLUME ["/data"]
+# SISCALIB_DATA só usado em modo SQLite local
+ENV SISCALIB_DATA=/tmp/siscalib
 EXPOSE 8080
 CMD ["./entrypoint.sh"]
