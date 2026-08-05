@@ -1,15 +1,11 @@
 services:
   - type: web
-    name: siscalib-cmasm
+    name: cmms-calibracao
     runtime: docker
     dockerfilePath: ./Dockerfile
     region: oregon
     plan: free
     envVars:
-      - key: SISCALIB_DATA
-        value: /data
-    disk:
-      name: siscalib-data
-      mountPath: /data
-      sizeGB: 1
+      - key: SISCALIB_DB_URL
+        sync: false   # valor definido no painel Render (não exposto no repo)
     healthCheckPath: /api/v1/health
