@@ -5,3 +5,7 @@ __pycache__/
 data/*.db
 data/uploads/
 .playwright-mcp/
+Calibracao_2026JUL28/
+cmms.calibracao-docs
+PS/
+.reference_readonly/
